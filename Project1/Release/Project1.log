@@ -1,0 +1,10 @@
+﻿  Server.cpp
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(203,21): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(230,21): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(221,6): warning C4101: 'selectResult': unreferenced local variable
+  Generating code
+  2 of 330 functions ( 0.6%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  Project1.vcxproj -> D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Release\Project1.exe

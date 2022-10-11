@@ -1,0 +1,9 @@
+﻿  Client.cpp
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Client\Client.cpp(156,7): warning C4551: function call missing argument list
+  main.cpp
+  Protocol.cpp
+  Generating code
+  Previous IPDB not found, fall back to full compilation.
+  All 160 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Client.vcxproj -> D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Release\Client.exe
