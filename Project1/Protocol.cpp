@@ -3,7 +3,7 @@
 struct PacketHeader
 {
 	int packetLength;
-	int messageId;
+	int messageType;
 };
 
 struct MessageData

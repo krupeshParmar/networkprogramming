@@ -13,8 +13,8 @@ public:
 	void WriteInt16LE(std::size_t index, int16_t value);
 	void WriteInt16LE(int16_t value);
 
-	void WriteStrLE(std::size_t index, std::size_t value);
-	void WriteStrLE(std::size_t value);
+	void WriteString(std::size_t index, std::string value);
+	void WriteString(std::string value);
 
 	int32_t ReadInt32LE(std::size_t index);
 	int32_t ReadInt32LE();
@@ -22,8 +22,8 @@ public:
 	int16_t ReadInt16LE(std::size_t index);
 	int16_t ReadInt16LE();
 
-	std::string ReadStrLE(std::size_t value);
-	std::string ReadStrLE();
+	std::string ReadString(std::size_t index);
+	std::string ReadString();
 
 private:
 	std::vector<uint8_t> m_Buffer;
