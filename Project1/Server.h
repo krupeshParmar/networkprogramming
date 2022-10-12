@@ -8,6 +8,7 @@
 #include <vector>
 #include "Client.h"
 #define DEFAULT_BUFLEN 512
+#define TOTAL_ROOMS 5
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -22,8 +23,9 @@ private:
 	int CreateSocket();
 	int BindSocket();
 	int Listen();
-	int Broadcast(std::string , std::string );
-	std::map < std::string, std::vector<Client>> Rooms;
+	int Broadcast(std::string , std::string , Client&, int );
+	//std::map < std::string, std::vector<Client>> Rooms;
+	std::string Rooms[5] = {"general", "resources", "polls", "announcements", "off-topic"};
 
 	char recvbuf[DEFAULT_BUFLEN];
 	std::vector<Client> clients;

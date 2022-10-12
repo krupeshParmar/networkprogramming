@@ -11,8 +11,9 @@ public:
 	Client();
 	~Client();
 	int Initialize(const char*);
-	int SendAndReceive(std::string);
+	int SendAndReceive();
 	int Chatting();
+	std::string clientName = " ";
 private:
 	int CreateSocket(const char*);
 	int ConnectingSocket();
@@ -20,7 +21,7 @@ private:
 
 	int iResult, recvbuflen = DEFAULT_BUFLEN;;
 	WSADATA wsaData;
-	std::string roomName;
+	std::string roomName = "";
 	SOCKET ConnectSocket = INVALID_SOCKET;
 	struct addrinfo* result = NULL, * ptr = NULL, hints;
 };

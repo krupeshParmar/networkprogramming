@@ -1,6 +1,13 @@
 #pragma once
 #include <string>
 
+enum MessageType
+{
+	JOIN,
+	MESSAGE,
+	LEAVE,
+};
+
 struct PacketHeader
 {
 	int packetLength;

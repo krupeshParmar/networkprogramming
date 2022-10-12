@@ -16,8 +16,6 @@ int main()
 	}
 	printf("WSAStartup success: %d\n", result);
 
-	//server.Accept();
-
 	result = server.ReceiveAndSend();
 
 	return result;

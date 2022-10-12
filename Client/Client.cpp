@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include <conio.h>
+#include "../Client/Buffer.h"
+#include "../Client/Protocol.h"
 
 #define DEFAULT_PORT "5555"
 
@@ -9,7 +11,7 @@ std::string getMsg(std::string);
 
 Client::Client()
 {
-
+	roomName = "";
 }
 
 Client::~Client()
@@ -122,12 +124,32 @@ int Client::IOCtlSocket()
 	return 0;
 }
 
-int Client::SendAndReceive(std::string name)
+int Client::SendAndReceive()
 {
-	std::string initMessage = name;
-	char recvbuf[DEFAULT_BUFLEN];
-	const char* sendbuf = initMessage.c_str();
-	iResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
+	MessagePacket packet;
+	packet.header.messageType = MESSAGE;
+	packet.content.senderName = clientName;
+	std::cout << "Client name" << clientName;
+	packet.content.roomName = "";
+	packet.content.message = clientName;
+	packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+		+ 4 + packet.content.roomName.size()
+		+ 4 + packet.content.message.size();
+
+	Buffer buffer = Buffer(packet.header.packetLength);
+	buffer.WriteInt32LE(packet.header.packetLength);
+	buffer.WriteInt16LE(packet.header.messageType);
+	buffer.WriteInt32LE(packet.content.senderName.size());
+	buffer.WriteString(packet.content.senderName);
+	buffer.WriteInt32LE(packet.content.roomName.size());
+	buffer.WriteString(packet.content.roomName);
+	buffer.WriteInt32LE(packet.content.message.size());
+	buffer.WriteString(packet.content.message);
+	std::cout << "yo\n" << buffer.m_Buffer[0] << std::endl;
+	char* bufPtr = (char*)&(buffer.m_Buffer[0]);
+	iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+
+	std::cout << iResult << std::endl;
 	if (iResult == SOCKET_ERROR)
 	{
 		printf("send failed: %d\n", WSAGetLastError());
@@ -138,21 +160,12 @@ int Client::SendAndReceive(std::string name)
 
 	printf("Bytes send: %ld\n", iResult);
 
-	// shutdown the connection for sending since no more data will be sent
-	// the client can still use the ConnectSocket for receiving data
-	/*iResult = shutdown(ConnectSocket, SD_SEND);
-	if (iResult == SOCKET_ERROR) {
-		printf("shutdown failed: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		return 1;
-	}*/
 	int quit = 0;
 	int pause = 0;
 	std::string msg = "";
 	// Receive data until the server closes the connection
 
-	printf("[Type here]:\t");
+	printf("\n[Type here]:\t");
 	do {
 		char ch;
 		if (_kbhit())
@@ -170,52 +183,154 @@ int Client::SendAndReceive(std::string name)
 			{
 				if (msg.length() > 0)
 					msg.pop_back();
-				std::cout << "[Type here]:\t" << msg << std::endl;
+				std::cout << "\n[Type here]:\t" << msg << std::endl;
 			}
 
 			if (ch == 13)
 			{
 				if (msg == "quit")
 					quit = 1;
-				if (msg[0] == '_')
+				if (msg.substr(0, 4) == "_join")
 				{
-					if (msg.substr(1, 4) == "join")
+					if (msg.length() > 6)
 					{
-						if(msg.length() > 6)
-							roomName = msg.substr(6);
+						printf("\nJoining\n");
+						roomName = msg.substr(6);
+						MessagePacket packet;
+						packet.header.messageType = JOIN;
+						packet.content.senderName = clientName;
+						packet.content.roomName = roomName;
+						packet.content.message = "joining";
+						packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+							+ 4 + packet.content.roomName.size()
+							+ 4 + packet.content.message.size();
+
+						Buffer buffer = Buffer(packet.header.packetLength);
+						buffer.WriteInt32LE(packet.header.packetLength);
+						buffer.WriteInt16LE(packet.header.messageType);
+						buffer.WriteInt32LE(packet.content.senderName.size());
+						buffer.WriteString(packet.content.senderName);
+						buffer.WriteInt32LE(packet.content.roomName.size());
+						buffer.WriteString(packet.content.roomName);
+						buffer.WriteInt32LE(packet.content.message.size());
+						buffer.WriteString(packet.content.message);
+						char* bufPtr = (char*)&(buffer.m_Buffer[0]);
+						iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+						/*std::cout << iResult << ", " << packet.header.packetLength << std::endl;*/
+						if (iResult == SOCKET_ERROR)
+						{
+							// TODO: REMOVE THIS LATER
+							printf("send failed: %d\n", WSAGetLastError());
+							closesocket(ConnectSocket);
+							WSACleanup();
+							return 1;
+						}
 					}
 				}
-
-				if (msg == "_leave")
+				else if (msg == "_leave")
 				{
-					pause = 1;
+					if (roomName != "")
+					{
+						pause = 1; 
+						MessagePacket packet;
+						packet.header.messageType = LEAVE;
+						packet.content.senderName = clientName;
+						packet.content.roomName = roomName;
+						packet.content.message = "leaving";
+						packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+							+ 4 + packet.content.roomName.size()
+							+ 4 + packet.content.message.size();
+
+						Buffer buffer = Buffer(packet.header.packetLength);
+						buffer.WriteInt32LE(packet.header.packetLength);
+						buffer.WriteInt16LE(packet.header.messageType);
+						buffer.WriteInt32LE(packet.content.senderName.size());
+						buffer.WriteString(packet.content.senderName);
+						buffer.WriteInt32LE(packet.content.roomName.size());
+						buffer.WriteString(packet.content.roomName);
+						buffer.WriteInt32LE(packet.content.message.size());
+						buffer.WriteString(packet.content.message);
+						char* bufPtr = (char*)&(buffer.m_Buffer[0]);
+						iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+
+						if (iResult == SOCKET_ERROR)
+						{
+							// TODO: REMOVE THIS LATER
+							printf("send failed: %d\n", WSAGetLastError());
+							closesocket(ConnectSocket);
+							WSACleanup();
+							return 1;
+						}
+					}
+				}
+				else {
+					MessagePacket packet;
+					packet.header.messageType = MESSAGE;
+					packet.content.senderName = clientName;
+					packet.content.roomName = roomName;
+					packet.content.message = msg;
+					packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+						+ 4 + packet.content.roomName.size()
+						+ 4 + packet.content.message.size();
+
+					Buffer buffer = Buffer(packet.header.packetLength);
+					buffer.WriteInt32LE(packet.header.packetLength);
+					buffer.WriteInt16LE(packet.header.messageType);
+					buffer.WriteInt32LE(packet.content.senderName.size());
+					buffer.WriteString(packet.content.senderName);
+					buffer.WriteInt32LE(packet.content.roomName.size());
+					buffer.WriteString(packet.content.roomName);
+					buffer.WriteInt32LE(packet.content.message.size());
+					buffer.WriteString(packet.content.message);
+					char* bufPtr = (char*)&(buffer.m_Buffer[0]);
+					iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+
+					if (iResult == SOCKET_ERROR)
+					{
+						// TODO: REMOVE THIS LATER
+						printf("send failed: %d\n", WSAGetLastError());
+						closesocket(ConnectSocket);
+						WSACleanup();
+						return 1;
+					}
 				}
 
 				if (pause)
 					continue;
-
-				iResult = send(ConnectSocket, msg.c_str(), (int)strlen(msg.c_str()), 0);
-				if (iResult == SOCKET_ERROR)
-				{
-					// TODO: REMOVE THIS LATER
-					printf("send failed: %d\n", WSAGetLastError());
-					closesocket(ConnectSocket);
-					WSACleanup();
-					return 1;
-				}
 				msg.clear();
 				printf("[Type here]:\t");
 			}
 		}
-		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-		std::string recvmsg = recvbuf;
-		if(iResult > 0)
-			std::cout << recvmsg << std::endl;
-		/*if (iResult > 0)
-			printf("Bytes received: %d\n", iResult);
-		else */
+		const int buflen = 512;
+		uint8_t data[buflen];
+		iResult = recv(ConnectSocket, (char*)&data[0], buflen, 0);
+		if (iResult > 1)
+		{
+			printf("\nReceiving msg\n");
+			Buffer buffer = Buffer(iResult);
+			for (int i = 0; i < iResult; i++)
+			{
+				buffer.m_Buffer[i] = data[i];
+			}
+			int packetlength = buffer.ReadInt32LE();
+			int messageType = buffer.ReadInt16LE();
+			int senderNameSize = buffer.ReadInt32LE();
+			std::cout << "Sender size " << senderNameSize << std::endl;
+			std::string senderName = buffer.ReadString(senderNameSize);
+			int roomNameSize = buffer.ReadInt32LE();
+			std::string roomName = buffer.ReadString(roomNameSize);
+			int msgSize = buffer.ReadInt32LE();
+			std::string msg = buffer.ReadString(msgSize);
+			std::cout << "[" << senderName << "] " << msg << std::endl;
+
+			std::cout << "\n[Type here]:\t" << msg << std::endl;
+		}
+
 		if (iResult == 0)
+		{
 			printf("Connection closed\n");
+			quit = 1;
+		}
 		/*else
 			printf("recv failed: %d\n", WSAGetLastError());*/
 	} while (!quit);

@@ -6,6 +6,7 @@
 class Buffer {
 public:
 	Buffer(size_t size);
+	//Buffer(uint8_t*, size_t);
 
 	void WriteInt32LE(std::size_t index, int32_t value);
 	void WriteInt32LE(int32_t value);
@@ -22,11 +23,11 @@ public:
 	int16_t ReadInt16LE(std::size_t index);
 	int16_t ReadInt16LE();
 
-	std::string ReadString(std::size_t index);
-	std::string ReadString();
+	std::string ReadString(std::size_t length);
+	std::vector<uint8_t> m_Buffer;
+
 
 private:
-	std::vector<uint8_t> m_Buffer;
 	int m_WriteIndex = 0;
 	int m_ReadIndex = 0;
 };

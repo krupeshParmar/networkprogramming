@@ -4,19 +4,22 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include "Buffer.h"
+#include "Protocol.h"
 
 Server::Server()
 {
-	std::vector<Client> emptyClients1 =  std::vector<Client>();
-	std::vector<Client> emptyClients2 =  std::vector<Client>();
-	std::vector<Client> emptyClients3 =  std::vector<Client>();
-	std::vector<Client> emptyClients4 =  std::vector<Client>();
-	std::vector<Client> emptyClients5 =  std::vector<Client>();
-	Rooms.insert({"general", emptyClients1 });
-	Rooms.insert({"resources", emptyClients2 });
-	Rooms.insert({"polls", emptyClients3 });
-	Rooms.insert({"announcements", emptyClients4 });
-	Rooms.insert({"off-topic", emptyClients5 });
+
+	//std::vector<Client> emptyClients1 =  std::vector<Client>();
+	//std::vector<Client> emptyClients2 =  std::vector<Client>();
+	//std::vector<Client> emptyClients3 =  std::vector<Client>();
+	//std::vector<Client> emptyClients4 =  std::vector<Client>();
+	//std::vector<Client> emptyClients5 =  std::vector<Client>();
+	//Rooms.insert({"general", emptyClients1 });
+	//Rooms.insert({"resources", emptyClients2 });
+	//Rooms.insert({"polls", emptyClients3 });
+	//Rooms.insert({"announcements", emptyClients4 });
+	//Rooms.insert({"off-topic", emptyClients5 });
 
 }
 
@@ -136,16 +139,66 @@ int Server::Accept()
 	else
 	{
 		const int buflen = 128;
-		char buf[buflen];
+		uint8_t buf[buflen];
 
 		Client client;
 		client.clientSocket = clientSocket;
 		client.connected = true;
 
-		int recvResult = recv(clientSocket, buf, buflen, 0);
-		std::string msg = buf;
-		client.clientName = msg;
-		client.roomName = "";
+		int recvResult = recv(clientSocket, (char*)&buf, buflen, 0);
+		if (recvResult > 0)
+		{
+			std::cout << recvResult << std::endl;
+			printf("Reached here\n");
+			Buffer buffer = Buffer(recvResult);
+			for (int i = 0; i < recvResult; i++)
+			{
+				buffer.m_Buffer[i] = buf[i];
+			}
+			int packetlength = buffer.ReadInt32LE();
+			std::cout << "Packet size " << packetlength << std::endl;
+			int messageType = buffer.ReadInt16LE();
+			std::cout << "message type " << messageType << std::endl;
+			int senderNameSize = buffer.ReadInt32LE();
+			std::cout << "Sender size " << senderNameSize << std::endl;
+			std::string senderName = buffer.ReadString(senderNameSize);
+			int roomNameSize = buffer.ReadInt32LE();
+			std::cout << "Roomname size " << roomNameSize << std::endl;
+			std::string roomName = buffer.ReadString(roomNameSize);
+			int msgSize = buffer.ReadInt32LE();
+			std::string msg = buffer.ReadString(msgSize);
+			client.clientName = msg;
+			client.roomName = "";
+
+			printf("Reached here now\n");
+			if (msg == client.clientName)
+			{
+				MessagePacket packet;
+
+				packet.header.messageType = 1;
+				packet.content.roomName = "";
+				packet.content.senderName = "server";
+				packet.content.message = "Welcome " + client.clientName + "\nGroups you can join:\n";
+				for (int i = 0; i < TOTAL_ROOMS; i++)
+				{
+					packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
+				}
+				packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+					+ 4 + packet.content.roomName.size()
+					+ 4 + packet.content.message.size();
+				std::cout << "Packet length: " << std::endl;
+				Buffer buffer = Buffer(packet.header.packetLength);
+				buffer.WriteInt32LE(packet.header.packetLength);
+				buffer.WriteInt16LE(packet.header.messageType);
+				buffer.WriteInt32LE(packet.content.senderName.size());
+				buffer.WriteString(packet.content.senderName);
+				buffer.WriteInt32LE(packet.content.roomName.size());
+				buffer.WriteString(packet.content.roomName);
+				buffer.WriteInt32LE(packet.content.message.size());
+				buffer.WriteString(packet.content.message);
+				iSendResult = send(client.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+			}
+		}
 
 		clients.push_back(client);
 	}
@@ -191,23 +244,101 @@ int Server::Accept()
 //	return iResult;
 //}
 
-int Server::Broadcast(std::string msg, std::string roomName)
+int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int messageType)
 {
-	std::map < std::string, std::vector<Client>>::iterator it;
+	bool roomFound = false;
 
-	it = Rooms.find(roomName); 
-	
-	if (it != Rooms.end())
+	for (int i = 0; i < TOTAL_ROOMS; i++)
+		if (roomName == Rooms[i])
+			roomFound = true;
+
+	if (roomFound)
 	{
-		std::vector<Client>* clientsInTheRoom = &Rooms[roomName];
-		for (int i = 0; i < clientsInTheRoom->size(); i++)
+		if (messageType == LEAVE)
 		{
-			Client client = clientsInTheRoom->at(i);
-			iSendResult = send(client.clientSocket, msg.c_str(), 512, 0);
-			printf("\nClient: %s\n", client.clientName);
+			MessagePacket packet;
+			packet.header.messageType = 1;
+			packet.content.roomName = roomName;
+			packet.content.senderName = sender.clientName;
+			packet.content.message = "Please join a group first\nGroups you can join:\n";
+			for (int i = 0; i < TOTAL_ROOMS; i++)
+			{
+				packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
+			}
+			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+				+ 4 + packet.content.roomName.size()
+				+ 4 + packet.content.message.size();
+
+			Buffer buffer = Buffer(packet.header.packetLength);
+			buffer.WriteInt32LE(packet.header.packetLength);
+			buffer.WriteInt16LE(packet.header.messageType);
+			buffer.WriteInt32LE(packet.content.senderName.size());
+			buffer.WriteString(packet.content.senderName);
+			buffer.WriteInt32LE(packet.content.roomName.size());
+			buffer.WriteString(packet.content.roomName);
+			buffer.WriteInt32LE(packet.content.message.size());
+			buffer.WriteString(packet.content.message);
+
+			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
+			return iSendResult;
 		}
-		//iSendResult = send(client.clientSocket, buf, recvResult, 0);
+		for (int i = 0; i < clients.size(); i++)
+		{
+			MessagePacket packet;
+
+			packet.header.messageType = 1;
+			packet.content.roomName = roomName;
+			packet.content.senderName = sender.clientName;
+			packet.content.message = msg;
+			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+				+ 4 + packet.content.roomName.size()
+				+ 4 + packet.content.message.size();
+
+			Buffer buffer = Buffer(packet.header.packetLength);
+			buffer.WriteInt32LE(packet.header.packetLength);
+			buffer.WriteInt16LE(packet.header.messageType);
+			buffer.WriteInt32LE(packet.content.senderName.size());
+			buffer.WriteString(packet.content.senderName);
+			buffer.WriteInt32LE(packet.content.roomName.size());
+			buffer.WriteString(packet.content.roomName);
+			buffer.WriteInt32LE(packet.content.message.size());
+			buffer.WriteString(packet.content.message);
+
+			if (clients[i].roomName == roomName)
+			{
+				iSendResult = send(clients[i].clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+			}
+		}
 	}
+	else {
+		
+		if (messageType == JOIN)
+		{
+			MessagePacket packet;
+			packet.header.messageType = 1;
+			packet.content.roomName = roomName;
+			packet.content.senderName = sender.clientName;
+			packet.content.message = "No group named " + roomName + "exists.";
+			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+				+ 4 + packet.content.roomName.size()
+				+ 4 + packet.content.message.size();
+
+			Buffer buffer = Buffer(packet.header.packetLength);
+			buffer.WriteInt32LE(packet.header.packetLength);
+			buffer.WriteInt16LE(packet.header.messageType);
+			buffer.WriteInt32LE(packet.content.senderName.size());
+			buffer.WriteString(packet.content.senderName);
+			buffer.WriteInt32LE(packet.content.roomName.size());
+			buffer.WriteString(packet.content.roomName);
+			buffer.WriteInt32LE(packet.content.message.size());
+			buffer.WriteString(packet.content.message);
+
+			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
+		}
+	}
+
+	if(messageType == LEAVE)
+		sender.roomName = "";
 
 	return iSendResult;
 	
@@ -260,17 +391,55 @@ int Server::ReceiveAndSend()
 			if (FD_ISSET(client.clientSocket, &socketsReadyForReading))
 			{
 				const int buflen = 128;
-				char buf[buflen];
+				uint8_t data[buflen];
 
-				int recvResult = recv(client.clientSocket, buf, buflen, 0);
+				int recvResult = recv(client.clientSocket, (char*)&data[0], buflen, 0);
 
-				if (recvResult == 0)
+				if (recvResult == 0 && client.connected)
 				{
 					printf("Client disconnected\n");
 					client.connected = false;
 					continue;
 				}
-				std::string msg = buf;
+
+				if (recvResult > 0)
+				{
+					int sendResult = -10;
+					Buffer buffer = Buffer(recvResult);
+					for (int i = 0; i < recvResult; i++)
+					{
+						buffer.m_Buffer[i] = data[i];
+					}
+					int packetlength = buffer.ReadInt32LE();
+					int messageType = buffer.ReadInt16LE();
+					int senderNameSize = buffer.ReadInt32LE();
+					std::string senderName = buffer.ReadString(senderNameSize);
+					int roomNameSize = buffer.ReadInt32LE();
+					std::string roomName = buffer.ReadString(roomNameSize);
+					int msgSize = buffer.ReadInt32LE();
+					std::string msg = buffer.ReadString(msgSize);
+
+					switch (messageType)
+					{
+					case JOIN:
+						sendResult = Server::Broadcast(senderName + " has joined " + roomName, roomName, client, messageType);
+						break;
+					case LEAVE:
+						sendResult = Server::Broadcast(senderName + " has left " + roomName, roomName, client, messageType);
+						break;
+					case MESSAGE:
+						sendResult = Server::Broadcast(msg, roomName, client, messageType);
+						break;
+					default:
+						break;
+					}
+
+					if (sendResult < 0)
+						printf("\nError\n");
+				}
+				
+
+				/*std::string msg = buf;
 				msg = msg.substr(0, recvResult);
 				if (msg[0] == '_')
 				{
@@ -297,7 +466,7 @@ int Server::ReceiveAndSend()
 
 				msg.append(buf);
 				std::cout << msg << std::endl;
-				iSendResult = send(client.clientSocket, buf, recvResult, 0);
+				iSendResult = send(client.clientSocket, buf, recvResult, 0);*/
 			}
 		}
 	}

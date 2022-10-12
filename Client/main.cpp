@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
 
 	std::cout << "Enter your name: ";
 	std::cin >> name;
+	client.clientName = name;
 
 	int result = client.Initialize("127.0.0.1");
 	if (result != 0)
@@ -18,7 +19,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 	
-	result = client.SendAndReceive(name);
+	result = client.SendAndReceive();
 	if (result != 0)
 	{
 		printf("Send and receive failed: %d\n", result);

@@ -7,6 +7,14 @@ Buffer::Buffer(size_t size)
 	m_ReadIndex = 0;
 }
 
+//Buffer::Buffer(uint8_t* buf, size_t size)
+//{
+//	for (size_t i = 0; i < size; i++)
+//	{
+//		m_Buffer.push_back(buf[i]);
+//	}
+//}
+
 
 void Buffer::WriteInt32LE(std::size_t index, int32_t value)
 {
@@ -96,11 +104,12 @@ void Buffer::WriteString(std::string value)
 	}
 }
 
-std::string Buffer::ReadString(std::size_t index)
+std::string Buffer::ReadString(std::size_t length)
 {
-	return m_Buffer[index];
-}
-std::string Buffer::ReadString()
-{
-
+	std::string msg = "";
+	for (int i = 0; i < length; i++)
+	{
+		msg += m_Buffer[m_ReadIndex++];
+	}
+	return msg;
 }

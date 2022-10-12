@@ -1,6 +1,5 @@
 ﻿  Server.cpp
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(203,21): warning C4018: '<': signed/unsigned mismatch
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(207,11): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 1 has type 'std::string'
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(231,21): warning C4018: '<': signed/unsigned mismatch
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(222,6): warning C4101: 'selectResult': unreferenced local variable
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(285,21): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(362,21): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(353,6): warning C4101: 'selectResult': unreferenced local variable
   Project1.vcxproj -> D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Debug\Project1.exe

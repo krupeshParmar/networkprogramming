@@ -8,6 +8,15 @@ Buffer::Buffer(size_t size)
 }
 
 
+Buffer::Buffer(uint8_t* buf, size_t size)
+{
+	for (size_t i = 0; i < size; i++)
+	{
+		m_Buffer[i] = buf[i];
+	}
+}
+
+
 void Buffer::WriteInt32LE(std::size_t index, int32_t value)
 {
 	m_Buffer[index] = value;
