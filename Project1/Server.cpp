@@ -10,17 +10,6 @@
 Server::Server()
 {
 
-	//std::vector<Client> emptyClients1 =  std::vector<Client>();
-	//std::vector<Client> emptyClients2 =  std::vector<Client>();
-	//std::vector<Client> emptyClients3 =  std::vector<Client>();
-	//std::vector<Client> emptyClients4 =  std::vector<Client>();
-	//std::vector<Client> emptyClients5 =  std::vector<Client>();
-	//Rooms.insert({"general", emptyClients1 });
-	//Rooms.insert({"resources", emptyClients2 });
-	//Rooms.insert({"polls", emptyClients3 });
-	//Rooms.insert({"announcements", emptyClients4 });
-	//Rooms.insert({"off-topic", emptyClients5 });
-
 }
 
 Server::~Server()
@@ -149,44 +138,40 @@ int Server::Accept()
 		if (recvResult > 0)
 		{
 			std::cout << recvResult << std::endl;
-			printf("Reached here\n");
 			Buffer buffer = Buffer(recvResult);
 			for (int i = 0; i < recvResult; i++)
 			{
 				buffer.m_Buffer[i] = buf[i];
 			}
 			int packetlength = buffer.ReadInt32LE();
-			std::cout << "Packet size " << packetlength << std::endl;
 			int messageType = buffer.ReadInt16LE();
-			std::cout << "message type " << messageType << std::endl;
 			int senderNameSize = buffer.ReadInt32LE();
-			std::cout << "Sender size " << senderNameSize << std::endl;
 			std::string senderName = buffer.ReadString(senderNameSize);
 			int roomNameSize = buffer.ReadInt32LE();
-			std::cout << "Roomname size " << roomNameSize << std::endl;
 			std::string roomName = buffer.ReadString(roomNameSize);
 			int msgSize = buffer.ReadInt32LE();
 			std::string msg = buffer.ReadString(msgSize);
 			client.clientName = msg;
 			client.roomName = "";
-
-			printf("Reached here now\n");
 			if (msg == client.clientName)
 			{
 				MessagePacket packet;
 
-				packet.header.messageType = 1;
+				packet.header.messageType = WELCOME;
 				packet.content.roomName = "";
-				packet.content.senderName = "server";
-				packet.content.message = "Welcome " + client.clientName + "\nGroups you can join:\n";
+				packet.content.senderName = "SERVER";
+				packet.content.message = "Welcome " + client.clientName + "\nRooms you can join:\n";
 				for (int i = 0; i < TOTAL_ROOMS; i++)
 				{
 					packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
 				}
+				packet.content.message += "\nUse _join room_name command to join a room\n";
+				packet.content.message += "\nUse _leave command to leave the room\n";
+				packet.content.message += "\nUse _help command to get help\n";
+
 				packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 					+ 4 + packet.content.roomName.size()
 					+ 4 + packet.content.message.size();
-				std::cout << "Packet length: " << std::endl;
 				Buffer buffer = Buffer(packet.header.packetLength);
 				buffer.WriteInt32LE(packet.header.packetLength);
 				buffer.WriteInt16LE(packet.header.messageType);
@@ -246,25 +231,53 @@ int Server::Accept()
 
 int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int messageType)
 {
+	if (messageType == HELP)
+	{
+		MessagePacket packet;
+		packet.content.message += "\Rooms you can join:\n";
+		for (int i = 0; i < TOTAL_ROOMS; i++)
+		{
+			packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
+		}
+		packet.content.message += "\nUse _join room_name command to join a room\n";
+		packet.content.message += "\nUse _leave command to leave the room\n";
+		packet.content.message += "\nUse _help command to get help\n";
+		packet.header.messageType = HELP;
+		packet.content.roomName = roomName;
+		packet.content.senderName = "SERVER";
+		packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+			+ 4 + packet.content.roomName.size()
+			+ 4 + packet.content.message.size();
+
+		Buffer buffer = Buffer(packet.header.packetLength);
+		buffer.WriteInt32LE(packet.header.packetLength);
+		buffer.WriteInt16LE(packet.header.messageType);
+		buffer.WriteInt32LE(packet.content.senderName.size());
+		buffer.WriteString(packet.content.senderName);
+		buffer.WriteInt32LE(packet.content.roomName.size());
+		buffer.WriteString(packet.content.roomName);
+		buffer.WriteInt32LE(packet.content.message.size());
+		buffer.WriteString(packet.content.message);
+		iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+		return iSendResult;
+	}
 	bool roomFound = false;
 
 	for (int i = 0; i < TOTAL_ROOMS; i++)
 		if (roomName == Rooms[i])
 			roomFound = true;
-
 	if (roomFound)
 	{
-		if (messageType == LEAVE)
+		std::cout << "[ "  << roomName << "] " << "[ " << sender.clientName << "] " << msg << std::endl;
+		
+		if (messageType == JOIN)
 		{
 			MessagePacket packet;
-			packet.header.messageType = 1;
+
+			packet.header.messageType = JOIN;
 			packet.content.roomName = roomName;
 			packet.content.senderName = sender.clientName;
-			packet.content.message = "Please join a group first\nGroups you can join:\n";
-			for (int i = 0; i < TOTAL_ROOMS; i++)
-			{
-				packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
-			}
+			packet.content.message = "\nWelcome to "+roomName + "\n";
 			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 				+ 4 + packet.content.roomName.size()
 				+ 4 + packet.content.message.size();
@@ -278,15 +291,15 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 			buffer.WriteString(packet.content.roomName);
 			buffer.WriteInt32LE(packet.content.message.size());
 			buffer.WriteString(packet.content.message);
-
-			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
-			return iSendResult;
+			sender.roomName = roomName;
+			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
 		}
+
 		for (int i = 0; i < clients.size(); i++)
 		{
 			MessagePacket packet;
 
-			packet.header.messageType = 1;
+			packet.header.messageType = MESSAGE;
 			packet.content.roomName = roomName;
 			packet.content.senderName = sender.clientName;
 			packet.content.message = msg;
@@ -309,16 +322,17 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 				iSendResult = send(clients[i].clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
 			}
 		}
+
+		return iSendResult;
 	}
 	else {
-		
 		if (messageType == JOIN)
 		{
 			MessagePacket packet;
 			packet.header.messageType = 1;
 			packet.content.roomName = roomName;
-			packet.content.senderName = sender.clientName;
-			packet.content.message = "No group named " + roomName + "exists.";
+			packet.content.senderName = "SERVER";
+			packet.content.message = "No group named " + roomName + " exists.";
 			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 				+ 4 + packet.content.roomName.size()
 				+ 4 + packet.content.message.size();
@@ -334,6 +348,34 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 			buffer.WriteString(packet.content.message);
 
 			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
+		}
+		else
+		{
+			MessagePacket packet;
+			packet.header.messageType = 1;
+			packet.content.roomName = roomName;
+			packet.content.senderName = "SERVER";
+			packet.content.message = "Please join a group first\nGroups you can join:\n";
+			for (int i = 0; i < TOTAL_ROOMS; i++)
+			{
+				packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
+			}
+			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+				+ 4 + packet.content.roomName.size()
+				+ 4 + packet.content.message.size();
+
+			Buffer buffer = Buffer(packet.header.packetLength);
+			buffer.WriteInt32LE(packet.header.packetLength);
+			buffer.WriteInt16LE(packet.header.messageType);
+			buffer.WriteInt32LE(packet.content.senderName.size());
+			buffer.WriteString(packet.content.senderName);
+			buffer.WriteInt32LE(packet.content.roomName.size());
+			buffer.WriteString(packet.content.roomName);
+			buffer.WriteInt32LE(packet.content.message.size());
+			buffer.WriteString(packet.content.message);
+
+			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
+			return iSendResult;
 		}
 	}
 
@@ -418,17 +460,20 @@ int Server::ReceiveAndSend()
 					std::string roomName = buffer.ReadString(roomNameSize);
 					int msgSize = buffer.ReadInt32LE();
 					std::string msg = buffer.ReadString(msgSize);
-
+					std::cout << msg << std::endl;
 					switch (messageType)
 					{
 					case JOIN:
-						sendResult = Server::Broadcast(senderName + " has joined " + roomName, roomName, client, messageType);
+						sendResult = Server::Broadcast(senderName + " has joined " + roomName + "\n", roomName, client, messageType);
 						break;
 					case LEAVE:
-						sendResult = Server::Broadcast(senderName + " has left " + roomName, roomName, client, messageType);
+						sendResult = Server::Broadcast(senderName + " has left " + roomName + "\n", roomName, client, messageType);
 						break;
 					case MESSAGE:
-						sendResult = Server::Broadcast(msg, roomName, client, messageType);
+						sendResult = Server::Broadcast(msg + "\n", roomName, client, messageType);
+						break;
+					case HELP:
+						sendResult = Server::Broadcast(msg + "\n", roomName, client, messageType);
 						break;
 					default:
 						break;

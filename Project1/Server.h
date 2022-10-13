@@ -25,7 +25,7 @@ private:
 	int Listen();
 	int Broadcast(std::string , std::string , Client&, int );
 	//std::map < std::string, std::vector<Client>> Rooms;
-	std::string Rooms[5] = {"general", "resources", "polls", "announcements", "off-topic"};
+	std::string Rooms[TOTAL_ROOMS] = {"general", "resources", "polls", "announcements", "off-topic"};
 
 	char recvbuf[DEFAULT_BUFLEN];
 	std::vector<Client> clients;

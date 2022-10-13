@@ -109,7 +109,6 @@ std::string Buffer::ReadString(std::size_t length)
 	std::string msg = "";
 	for (int i = 0; i < length; i++)
 	{
-		printf("%d\n\n", m_ReadIndex);
 		msg += m_Buffer[m_ReadIndex++];
 	}
 	return msg;

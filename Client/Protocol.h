@@ -6,6 +6,8 @@ enum MessageType
 	JOIN,
 	MESSAGE,
 	LEAVE,
+	WELCOME,
+	HELP,
 };
 
 struct PacketHeader
