@@ -4,6 +4,7 @@
 #include <vector>
 #include "Buffer.h"
 
+// Client class for server
 class Client {
 public:
 	Client();

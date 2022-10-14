@@ -6,14 +6,14 @@
 #define DEFAULT_BUFLEN 512
 #pragma comment(lib, "Ws2_32.lib")
 
+// Client class
 class Client {
 public:
 	Client();
 	~Client();
 	int Initialize(const char*);
 	int SendAndReceive();
-	int Chatting();
-	std::string clientName = " ";
+	std::string clientName = "";
 private:
 	int CreateSocket(const char*);
 	int ConnectingSocket();

@@ -2,23 +2,22 @@
 #include <iostream>
 #include <string>
 #include <conio.h>
-#include "../Project1/Buffer.h"
-#include "../Project1/Protocol.h"
+#include "Buffer.h"
+#include "Protocol.h"
 
 #define DEFAULT_PORT "5555"
 
-std::string getMsg(std::string);
-
+// Initialize with empty room
 Client::Client()
 {
 	roomName = "";
 }
 
+// shutdown socket
 Client::~Client()
 {
 	iResult = shutdown(ConnectSocket, SD_SEND);
 	if (iResult == SOCKET_ERROR) {
-		printf("shutdown failed: %d\n", WSAGetLastError());
 		closesocket(ConnectSocket);
 		WSACleanup();
 	}
@@ -26,9 +25,14 @@ Client::~Client()
 	WSACleanup();
 }
 
+/// <summary>
+/// Initialize winsock connection
+/// </summary>
+/// <param name="ipadd"></param>
+/// <returns></returns>
 int Client::Initialize(const char* ipadd)
 {
-	printf("Calling Init . . . ");
+	printf("Trying to connect with GDP server");
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (iResult != 0) {
 		printf("WSAStartup failed: %d\n", iResult);
@@ -56,14 +60,18 @@ int Client::Initialize(const char* ipadd)
 	return iResult;
 }
 
+/// <summary>
+/// Create a socket
+/// </summary>
+/// <param name="ipadd"></param>
+/// <returns></returns>
 int Client::CreateSocket(const char* ipadd)
 {
-	printf("Calling Create Socket . . . ");
+	//printf("Calling Create Socket . . . ");
 	ZeroMemory(&hints, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
-	printf("Here 1\n");
 
 	iResult = getaddrinfo(ipadd, DEFAULT_PORT, &hints, &result);
 	if (iResult != 0)
@@ -73,7 +81,6 @@ int Client::CreateSocket(const char* ipadd)
 		return 1;
 	}
 	ptr = result;
-	printf("Here 2\n");
 
 	ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 	if (ConnectSocket == INVALID_SOCKET)
@@ -83,13 +90,15 @@ int Client::CreateSocket(const char* ipadd)
 		WSACleanup();
 		return 1;
 	}
-	printf("Here 3\n");
 	return 0;
 }
 
+/// <summary>
+/// Connect to server with given ip address
+/// </summary>
+/// <returns></returns>
 int Client::ConnectingSocket()
 {
-	printf("Calling Connecting Socket . . . ");
 	iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
 	if (iResult == SOCKET_ERROR)
 	{
@@ -105,10 +114,13 @@ int Client::ConnectingSocket()
 		WSACleanup();
 		return 1;
 	}
-	printf("Here 4\n");
 	return 0;
 }
 
+/// <summary>
+/// Input output control fo socket
+/// </summary>
+/// <returns></returns>
 int Client::IOCtlSocket()
 {
 	DWORD NonBlock = 1;
@@ -124,18 +136,23 @@ int Client::IOCtlSocket()
 	return 0;
 }
 
+/// <summary>
+/// Send and receive messages
+/// </summary>
+/// <returns></returns>
 int Client::SendAndReceive()
 {
+	// Send an initial message, i.e., your name
 	MessagePacket packet;
 	packet.header.messageType = MESSAGE;
 	packet.content.senderName = clientName;
-	std::cout << "Client name" << clientName;
 	packet.content.roomName = "";
 	packet.content.message = clientName;
 	packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 		+ 4 + packet.content.roomName.size()
 		+ 4 + packet.content.message.size();
 
+	// Serialize the message to send over the network
 	Buffer buffer = Buffer(packet.header.packetLength);
 	buffer.WriteInt32LE(packet.header.packetLength);
 	buffer.WriteInt16LE(packet.header.messageType);
@@ -148,7 +165,6 @@ int Client::SendAndReceive()
 	char* bufPtr = (char*)&(buffer.m_Buffer[0]);
 	iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
 
-	std::cout << iResult << std::endl;
 	if (iResult == SOCKET_ERROR)
 	{
 		printf("send failed: %d\n", WSAGetLastError());
@@ -160,13 +176,13 @@ int Client::SendAndReceive()
 	int quit = 0;
 	int pause = 0;
 	std::string my_msg = "";
-	// Receive data until the server closes the connection
 
+	// chat loop
 	printf("\n[Type here]:");
 	do {
-		const int buflen = 512;
+		const int buflen = DEFAULT_BUFLEN;
 		uint8_t data[buflen];
-		iResult = recv(ConnectSocket, (char*)&data[0], buflen, 0);
+		iResult = recv(ConnectSocket, (char*)&data[0], buflen, 0);			// try  to read the new messages
 		if (iResult > 1)
 		{
 			Buffer buffer = Buffer(iResult);
@@ -174,6 +190,8 @@ int Client::SendAndReceive()
 			{
 				buffer.m_Buffer[i] = data[i];
 			}
+
+			// Deserialize the message we received
 			int packetlength = buffer.ReadInt32LE();
 			int messageType = buffer.ReadInt16LE();
 			int senderNameSize = buffer.ReadInt32LE();
@@ -188,6 +206,7 @@ int Client::SendAndReceive()
 				Client::roomName = roomName;
 			}
 
+			// display  the received messages
 			if (messageType == HELP)
 			{
 				std::cout << "\n\n-------HELP-------" << std::endl;
@@ -196,33 +215,35 @@ int Client::SendAndReceive()
 			}
 			else {
 				std::cout << "\n[" << roomName << "] " << "[" << senderName << "] " << message << std::endl;
-
 			}
-				if (Client::roomName.size() > 0)
-					std::cout << "\n[" << Client::roomName << "] " << "[Type here]: " << my_msg;
-				else
-					std::cout << "\n[Type here]: " << my_msg;
+			if (Client::roomName.size() > 0)
+				std::cout << "\n[" << Client::roomName << "] " << "[Type here]: " << my_msg;
+			else
+				std::cout << "\n[Type here]: " << my_msg;
 		}
 
+		// if we receive zero, then connection  has been closed by server
 		if (iResult == 0)
 		{
 			printf("Connection closed\n");
 			quit = 1;
 		}
 
+		// take input from keyboard
 		char ch;
 		if (_kbhit())
 		{
 			ch = _getch();
-			if (ch == 27)
+			if (ch == 27)	// Escape key to quit the app
 				quit = 1;
-			if (ch >= 32 && ch <= 126)
+
+			if (ch >= 32 && ch <= 126)	// If the character pressed is valid then add them to your my_msg string and display
 			{
 				my_msg += ch;
 				std::cout << ch;
 			}
 
-			if (ch == 8)
+			if (ch == 8)		// On backspace key, remove the last char, if there is at least one char in my_msg
 			{
 				if (my_msg.length() > 0)
 					my_msg.pop_back();
@@ -232,16 +253,16 @@ int Client::SendAndReceive()
 					std::cout << "\n[Type here]: " << my_msg;
 			}
 
-			if (ch == 13 && my_msg.size() > 0)
+			if (ch == 13 && my_msg.size() > 0)		// If enter is hit, and my_msg has at least one element
 			{
 					
-				if (my_msg == "quit")
+				if (my_msg == "quit")				// If the message is "quit" then exit the app
 					quit = 1;
-				if (my_msg.substr(0, 5) == "_join")
+				if (my_msg.substr(0, 5) == "_join")	// If the message is "_join" then try to join the provided room
 				{
 					if (my_msg.length() > 6)
 					{
-						std::string tempRoomName = my_msg.substr(6);
+						std::string tempRoomName = my_msg.substr(6);	// get room name
 						printf("\nJoining %s\n", tempRoomName.c_str());
 						MessagePacket packet;
 						packet.header.messageType = JOIN;
@@ -252,6 +273,7 @@ int Client::SendAndReceive()
 							+ 4 + packet.content.roomName.size()
 							+ 4 + packet.content.message.size();
 
+						// Serialize the message to send over the network
 						Buffer buffer = Buffer(packet.header.packetLength);
 						buffer.WriteInt32LE(packet.header.packetLength);
 						buffer.WriteInt16LE(packet.header.messageType);
@@ -262,10 +284,11 @@ int Client::SendAndReceive()
 						buffer.WriteInt32LE(packet.content.message.size());
 						buffer.WriteString(packet.content.message);
 						char* bufPtr = (char*)&(buffer.m_Buffer[0]);
-						iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+						iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);	// send the message
+
+						// if message not sent, display failed attempt
 						if (iResult == SOCKET_ERROR)
 						{
-							// TODO: REMOVE THIS LATER
 							printf("send failed: %d\n", WSAGetLastError());
 							closesocket(ConnectSocket);
 							WSACleanup();
@@ -273,7 +296,7 @@ int Client::SendAndReceive()
 						}
 					}
 				}
-				else if (my_msg == "_help")
+				else if (my_msg == "_help")		// If the message is "_help" then try to get help from server
 				{
 					MessagePacket packet;
 					packet.header.messageType = HELP;
@@ -284,6 +307,7 @@ int Client::SendAndReceive()
 						+ 4 + packet.content.roomName.size()
 						+ 4 + packet.content.message.size();
 
+					// Serialize the message to send over the network
 					Buffer buffer = Buffer(packet.header.packetLength);
 					buffer.WriteInt32LE(packet.header.packetLength);
 					buffer.WriteInt16LE(packet.header.messageType);
@@ -294,22 +318,21 @@ int Client::SendAndReceive()
 					buffer.WriteInt32LE(packet.content.message.size());
 					buffer.WriteString(packet.content.message);
 					char* bufPtr = (char*)&(buffer.m_Buffer[0]);
-					iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+					iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);		// send the message
 
+					// if message not sent, display failed attempt
 					if (iResult == SOCKET_ERROR)
 					{
-						// TODO: REMOVE THIS LATER
 						printf("send failed: %d\n", WSAGetLastError());
 						closesocket(ConnectSocket);
 						WSACleanup();
 						return 1;
 					}
 				}
-				else if (my_msg == "_leave")
+				else if (my_msg == "_leave")		// If the message is "_leave" then try to leave the current room
 				{
-					if (Client::roomName != "")
+					if (Client::roomName != "")		// first check whether we are in a room
 					{
-						Client::roomName = "";
 						MessagePacket packet;
 						packet.header.messageType = LEAVE;
 						packet.content.senderName = clientName;
@@ -330,10 +353,10 @@ int Client::SendAndReceive()
 						buffer.WriteString(packet.content.message);
 						char* bufPtr = (char*)&(buffer.m_Buffer[0]);
 						iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+						Client::roomName = "";
 
 						if (iResult == SOCKET_ERROR)
 						{
-							// TODO: REMOVE THIS LATER
 							printf("send failed: %d\n", WSAGetLastError());
 							closesocket(ConnectSocket);
 							WSACleanup();
@@ -341,7 +364,7 @@ int Client::SendAndReceive()
 						}
 					}
 				}
-				else {
+				else {					// If it is just a normal message then try to send it to the current room
 					MessagePacket packet;
 					packet.header.messageType = MESSAGE;
 					packet.content.senderName = clientName;
@@ -365,7 +388,6 @@ int Client::SendAndReceive()
 
 					if (iResult == SOCKET_ERROR)
 					{
-						// TODO: REMOVE THIS LATER
 						printf("send failed: %d\n", WSAGetLastError());
 						closesocket(ConnectSocket);
 						WSACleanup();
@@ -380,12 +402,10 @@ int Client::SendAndReceive()
 					std::cout << "\n[Type here]: " << my_msg;
 			}
 		}
-		
-		/*else
-			printf("recv failed: %d\n", WSAGetLastError());*/
-	} while (!quit);
+	} while (!quit);	// If not quit, continue the loop
 	printf("Exit");
 
+	// Shutdown the connection
 	iResult = shutdown(ConnectSocket, SD_SEND);
 	if (iResult == SOCKET_ERROR) {
 		printf("shutdown failed: %d\n", WSAGetLastError());
@@ -396,7 +416,3 @@ int Client::SendAndReceive()
 	return 0;
 }
 
-int Client::Chatting()
-{
-	return 1;
-}

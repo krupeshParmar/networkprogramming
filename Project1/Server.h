@@ -12,6 +12,7 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
+// Server class
 class Server {
 public:
 	Server();
@@ -24,8 +25,12 @@ private:
 	int BindSocket();
 	int Listen();
 	int Broadcast(std::string , std::string , Client&, int );
+
+	// tried creating a map, but using iterator for such simple thing seemed unnecessary
 	//std::map < std::string, std::vector<Client>> Rooms;
+
 	std::string Rooms[TOTAL_ROOMS] = {"general", "resources", "polls", "announcements", "off-topic"};
+	std::string helpString = "";
 
 	char recvbuf[DEFAULT_BUFLEN];
 	std::vector<Client> clients;

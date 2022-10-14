@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+// Types of messages
 enum MessageType
 {
 	JOIN,
@@ -10,12 +11,14 @@ enum MessageType
 	HELP,
 };
 
+// header for packet
 struct PacketHeader
 {
 	int packetLength = 0;
 	int messageType = 0;
 };
 
+// contents of the packet
 struct MessageData
 {
 	std::string roomName = "";
@@ -23,6 +26,7 @@ struct MessageData
 	std::string senderName = "";
 };
 
+// packet
 struct MessagePacket
 {
 	PacketHeader header;

@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include "Server.h"
 #define DEFAULT_PORT "5555"
+#define SERVER_NAME "GDP SERVER"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -9,9 +10,13 @@
 
 Server::Server()
 {
-
+	helpString = "\nRooms you can join:\n\tgeneral\n\tresources\n\tpolls\n\tannouncements\n\toff-topic";
+	helpString += "\nUse _join room_name command to join a room\n";
+	helpString += "\nUse _leave command to leave the room\n";
+	helpString += "\nUse _help command to get help\n";
 }
 
+// close socket
 Server::~Server()
 {
 	printf("Shutting down\n");
@@ -19,9 +24,13 @@ Server::~Server()
 	WSACleanup();
 }
 
+/// <summary>
+/// Initialize the Winsock connection
+/// </summary>
+/// <returns></returns>
 int Server::Initialize()
 {
-	printf("Calling Init . . . ");
+	printf("\nStarting up the GDP Server\n");
 
 	FD_ZERO(&activeSockets);
 	FD_ZERO(&socketsReadyForReading);
@@ -53,13 +62,13 @@ int Server::Initialize()
 		printf("Listen failed: %d\n", iResult);
 		return 1;
 	}
-
 	return iResult;
 }
 
+// Create listening socket
 int Server::CreateSocket()
 {
-	printf("Calling Create Socket . . . ");
+	//printf("Calling Create Socket . . . ");
 	ZeroMemory(&hints, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
@@ -82,9 +91,10 @@ int Server::CreateSocket()
 	return iResult;
 }
 
+// Binding the socket to address
 int Server::BindSocket()
 {
-	printf("Calling BindSocket . . . ");
+	//printf("Calling BindSocket . . . ");
 	iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
 	if (iResult == SOCKET_ERROR)
 	{
@@ -97,10 +107,13 @@ int Server::BindSocket()
 	freeaddrinfo(result);
 	return iResult;
 }
-
+/// <summary>
+/// Listen for connections
+/// </summary>
+/// <returns></returns>
 int Server::Listen()
 {
-	printf("Calling Listen . . . ");
+	//printf("Calling Listen . . . ");
 	iResult = listen(ListenSocket, SOMAXCONN);
 	if ( iResult == SOCKET_ERROR )
 	{
@@ -113,9 +126,13 @@ int Server::Listen()
 	return 0;
 }
 
+/// <summary>
+/// Accept new connections
+/// </summary>
+/// <returns></returns>
 int Server::Accept()
 {
-	printf("Calling Accept . . . ");
+	//printf("Calling Accept . . . ");
 	SOCKET clientSocket = accept(ListenSocket, NULL, NULL);
 	if (clientSocket == INVALID_SOCKET)
 	{
@@ -127,6 +144,7 @@ int Server::Accept()
 	}
 	else
 	{
+		// If a new client is connected, then read their name and send them a warm welcome
 		const int buflen = 128;
 		uint8_t buf[buflen];
 
@@ -137,12 +155,12 @@ int Server::Accept()
 		int recvResult = recv(clientSocket, (char*)&buf, buflen, 0);
 		if (recvResult > 0)
 		{
-			std::cout << recvResult << std::endl;
 			Buffer buffer = Buffer(recvResult);
 			for (int i = 0; i < recvResult; i++)
 			{
 				buffer.m_Buffer[i] = buf[i];
 			}
+			// Deserialize message to get client's name
 			int packetlength = buffer.ReadInt32LE();
 			int messageType = buffer.ReadInt16LE();
 			int senderNameSize = buffer.ReadInt32LE();
@@ -156,22 +174,17 @@ int Server::Accept()
 			if (msg == client.clientName)
 			{
 				MessagePacket packet;
-
+				std::cout << client.clientName << " connected" << std::endl;
 				packet.header.messageType = WELCOME;
 				packet.content.roomName = "";
-				packet.content.senderName = "SERVER";
-				packet.content.message = "Welcome " + client.clientName + "\nRooms you can join:\n";
-				for (int i = 0; i < TOTAL_ROOMS; i++)
-				{
-					packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
-				}
-				packet.content.message += "\nUse _join room_name command to join a room\n";
-				packet.content.message += "\nUse _leave command to leave the room\n";
-				packet.content.message += "\nUse _help command to get help\n";
+				packet.content.senderName = SERVER_NAME;
+				packet.content.message = "Welcome " + client.clientName + helpString;
 
 				packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 					+ 4 + packet.content.roomName.size()
 					+ 4 + packet.content.message.size();
+
+				// Serialize message
 				Buffer buffer = Buffer(packet.header.packetLength);
 				buffer.WriteInt32LE(packet.header.packetLength);
 				buffer.WriteInt16LE(packet.header.messageType);
@@ -181,70 +194,37 @@ int Server::Accept()
 				buffer.WriteString(packet.content.roomName);
 				buffer.WriteInt32LE(packet.content.message.size());
 				buffer.WriteString(packet.content.message);
+				// Send the welcome message to the client
 				iSendResult = send(client.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
 			}
 		}
-
+		// add the client to clients list
 		clients.push_back(client);
 	}
 	return 0;
 }
 
-//int Server::ReceiveAndSend()
-//{
-//	int byteSentCounts = 0, byteRecvCounts = 0;
-//	int quit = 0;
-//	do
-//	{
-//		iResult = recv(clientSocket.clientSocket, recvbuf, recvbuflen, 0);
-//		if (recvbuf == "quit")
-//			quit = 1;
-//		if (iResult > 0)
-//		{
-//			std::string msg = "";
-//			msg = "\n" + std::string(recvbuf) + "\n";
-//			byteRecvCounts++;
-//			std::cout << msg;
-//			// Echo the buffer back to the sender
-//			iSendResult = send(clientSocket.clientSocket, recvbuf, iResult, 0);
-//			if (iSendResult == SOCKET_ERROR)
-//			{
-//				printf("Send failed: %d\n", WSAGetLastError());
-//				closesocket(clientSocket.clientSocket);
-//				WSACleanup();
-//				return 1;
-//			}
-//			//printf("Bytes sent: %d\n", iSendResult);
-//		}
-//		/*else if (iResult == 0)
-//			printf("Connection closing . . .");*/
-//		else {
-//			printf("recv failed: %d\n", WSAGetLastError());
-//			closesocket(clientSocket.clientSocket);
-//			WSACleanup();
-//			return 1;
-//		}
-//
-//	} while (quit != 1);
-//	return iResult;
-//}
-
+/// <summary>
+/// Broadcast the message to proper clients
+/// </summary>
+/// <param name="msg"> Message to be sent </param>
+/// <param name="roomName"> Name of room where the message is supposed to go </param>
+/// <param name="sender"> Client who is sending the message </param>
+/// <param name="messageType"> Type of message </param>
+/// <returns></returns>
 int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int messageType)
 {
+	// print the message to the server first
+	std::cout << "[ "  << roomName << "] " << "[ " << sender.clientName << "] " << msg << std::endl;
+
+	// if message type is HELP, send help text
 	if (messageType == HELP)
 	{
 		MessagePacket packet;
-		packet.content.message += "\Rooms you can join:\n";
-		for (int i = 0; i < TOTAL_ROOMS; i++)
-		{
-			packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
-		}
-		packet.content.message += "\nUse _join room_name command to join a room\n";
-		packet.content.message += "\nUse _leave command to leave the room\n";
-		packet.content.message += "\nUse _help command to get help\n";
+		packet.content.message = helpString;
 		packet.header.messageType = HELP;
 		packet.content.roomName = roomName;
-		packet.content.senderName = "SERVER";
+		packet.content.senderName = SERVER_NAME;
 		packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 			+ 4 + packet.content.roomName.size()
 			+ 4 + packet.content.message.size();
@@ -263,13 +243,15 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 	}
 	bool roomFound = false;
 
+	// search whether the provided room exists
 	for (int i = 0; i < TOTAL_ROOMS; i++)
 		if (roomName == Rooms[i])
 			roomFound = true;
+
+	// If room exists...
 	if (roomFound)
 	{
-		std::cout << "[ "  << roomName << "] " << "[ " << sender.clientName << "] " << msg << std::endl;
-		
+		// If message type is join, add the client to the room, and send them a welcome message
 		if (messageType == JOIN)
 		{
 			MessagePacket packet;
@@ -295,112 +277,96 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
 		}
 
+		// Broadcast the message to all the clients in given room
 		for (int i = 0; i < clients.size(); i++)
 		{
-			MessagePacket packet;
-
-			packet.header.messageType = MESSAGE;
-			packet.content.roomName = roomName;
-			packet.content.senderName = sender.clientName;
-			packet.content.message = msg;
-			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
-				+ 4 + packet.content.roomName.size()
-				+ 4 + packet.content.message.size();
-
-			Buffer buffer = Buffer(packet.header.packetLength);
-			buffer.WriteInt32LE(packet.header.packetLength);
-			buffer.WriteInt16LE(packet.header.messageType);
-			buffer.WriteInt32LE(packet.content.senderName.size());
-			buffer.WriteString(packet.content.senderName);
-			buffer.WriteInt32LE(packet.content.roomName.size());
-			buffer.WriteString(packet.content.roomName);
-			buffer.WriteInt32LE(packet.content.message.size());
-			buffer.WriteString(packet.content.message);
-
 			if (clients[i].roomName == roomName)
 			{
+				MessagePacket packet;
+				std::cout << msg;
+				packet.header.messageType = MESSAGE;
+				packet.content.roomName = roomName;
+				packet.content.senderName = sender.clientName;
+				packet.content.message = msg;
+				packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+					+ 4 + packet.content.roomName.size()
+					+ 4 + packet.content.message.size();
+
+				// Serialize the packet
+				Buffer buffer = Buffer(packet.header.packetLength);
+				buffer.WriteInt32LE(packet.header.packetLength);
+				buffer.WriteInt16LE(packet.header.messageType);
+				buffer.WriteInt32LE(packet.content.senderName.size());
+				buffer.WriteString(packet.content.senderName);
+				buffer.WriteInt32LE(packet.content.roomName.size());
+				buffer.WriteString(packet.content.roomName);
+				buffer.WriteInt32LE(packet.content.message.size());
+				buffer.WriteString(packet.content.message);
+
+				// Send the packet to room members
 				iSendResult = send(clients[i].clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
 			}
 		}
 
+		// if the message type is LEAVE, remove the client from the room
+		if (messageType == LEAVE)
+			sender.roomName = "";
 		return iSendResult;
 	}
-	else {
+	else {		// If the room not found ...
+		MessagePacket packet;
+		packet.header.messageType = MESSAGE;
+		packet.content.roomName = "";
+		packet.content.senderName = SERVER_NAME;
+
+		// If the message type is join, tell client to enter a valid room name
 		if (messageType == JOIN)
 		{
-			MessagePacket packet;
-			packet.header.messageType = 1;
-			packet.content.roomName = roomName;
-			packet.content.senderName = "SERVER";
 			packet.content.message = "No group named " + roomName + " exists.";
-			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
-				+ 4 + packet.content.roomName.size()
-				+ 4 + packet.content.message.size();
-
-			Buffer buffer = Buffer(packet.header.packetLength);
-			buffer.WriteInt32LE(packet.header.packetLength);
-			buffer.WriteInt16LE(packet.header.messageType);
-			buffer.WriteInt32LE(packet.content.senderName.size());
-			buffer.WriteString(packet.content.senderName);
-			buffer.WriteInt32LE(packet.content.roomName.size());
-			buffer.WriteString(packet.content.roomName);
-			buffer.WriteInt32LE(packet.content.message.size());
-			buffer.WriteString(packet.content.message);
-
-			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
+			packet.content.message += "\n Use _help command to know about the server\n";
 		}
-		else
-		{
-			MessagePacket packet;
-			packet.header.messageType = 1;
-			packet.content.roomName = roomName;
-			packet.content.senderName = "SERVER";
-			packet.content.message = "Please join a group first\nGroups you can join:\n";
-			for (int i = 0; i < TOTAL_ROOMS; i++)
-			{
-				packet.content.message += i + 1 + ")" + Rooms[i] + "\n";
-			}
-			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
-				+ 4 + packet.content.roomName.size()
-				+ 4 + packet.content.message.size();
-
-			Buffer buffer = Buffer(packet.header.packetLength);
-			buffer.WriteInt32LE(packet.header.packetLength);
-			buffer.WriteInt16LE(packet.header.messageType);
-			buffer.WriteInt32LE(packet.content.senderName.size());
-			buffer.WriteString(packet.content.senderName);
-			buffer.WriteInt32LE(packet.content.roomName.size());
-			buffer.WriteString(packet.content.roomName);
-			buffer.WriteInt32LE(packet.content.message.size());
-			buffer.WriteString(packet.content.message);
-
-			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
-			return iSendResult;
+		else {
+			packet.content.message = "\nPlease join a room first\n";
+			packet.content.message += "\n Use _help command to know about the server\n";
 		}
-	}
+		packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+			+ 4 + packet.content.roomName.size()
+			+ 4 + packet.content.message.size();
 
-	if(messageType == LEAVE)
-		sender.roomName = "";
+		// Serialize the packet
+		Buffer buffer = Buffer(packet.header.packetLength);
+		buffer.WriteInt32LE(packet.header.packetLength);
+		buffer.WriteInt16LE(packet.header.messageType);
+		buffer.WriteInt32LE(packet.content.senderName.size());
+		buffer.WriteString(packet.content.senderName);
+		buffer.WriteInt32LE(packet.content.roomName.size());
+		buffer.WriteString(packet.content.roomName);
+		buffer.WriteInt32LE(packet.content.message.size());
+		buffer.WriteString(packet.content.message);
 
-	return iSendResult;
-	
+		// send the serialized packet
+		iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
+		return iSendResult;
+	}	
 }
 
+/// <summary>
+/// Send and receive messages to and from the clients
+/// </summary>
+/// <returns></returns>
 int Server::ReceiveAndSend()
 {
 	struct timeval tv;
 	tv.tv_sec = 0;
-	tv.tv_usec = 500 * 1000; // 500 milliseconds, half a second
+	tv.tv_usec = 500 * 1000;
 
-	int selectResult;
-
-	int num = 0;
 	while (1)
 	{
 		FD_ZERO(&socketsReadyForReading);
 
 		FD_SET(ListenSocket, &socketsReadyForReading);
 
+		// listen to connected clients
 		for (int i = 0; i < clients.size(); i++)
 		{
 			Client& client = clients[i];
@@ -410,6 +376,7 @@ int Server::ReceiveAndSend()
 			}
 		}
 
+		// perform synchronous I/O
 		iSelectResult = select(0, &socketsReadyForReading, NULL, NULL, &tv);
 		if (iSelectResult == SOCKET_ERROR)
 		{
@@ -418,12 +385,14 @@ int Server::ReceiveAndSend()
 		}
 		printf(".");
 
+		// If ther is a new connection then accept it
 		if (FD_ISSET(ListenSocket, &socketsReadyForReading))
 		{
 			printf("\n");
 			Server::Accept();
 		}
 
+		// Look for new messages from all the connected clients
 		for (int i = clients.size() - 1; i >= 0; i--)
 		{
 			Client& client = clients[i];
@@ -439,7 +408,7 @@ int Server::ReceiveAndSend()
 
 				if (recvResult == 0 && client.connected)
 				{
-					printf("Client disconnected\n");
+					std::cout << client.clientName << " disconnected" << std::endl;
 					client.connected = false;
 					continue;
 				}
@@ -452,6 +421,8 @@ int Server::ReceiveAndSend()
 					{
 						buffer.m_Buffer[i] = data[i];
 					}
+					
+					// Deserialize received message
 					int packetlength = buffer.ReadInt32LE();
 					int messageType = buffer.ReadInt16LE();
 					int senderNameSize = buffer.ReadInt32LE();
@@ -461,6 +432,8 @@ int Server::ReceiveAndSend()
 					int msgSize = buffer.ReadInt32LE();
 					std::string msg = buffer.ReadString(msgSize);
 					std::cout << msg << std::endl;
+
+					// broadcast message, depending on the message type
 					switch (messageType)
 					{
 					case JOIN:
@@ -479,39 +452,10 @@ int Server::ReceiveAndSend()
 						break;
 					}
 
+					// If send failed, print "Error"
 					if (sendResult < 0)
 						printf("\nError\n");
 				}
-				
-
-				/*std::string msg = buf;
-				msg = msg.substr(0, recvResult);
-				if (msg[0] == '_')
-				{
-					printf("Here1\n");
-					if (msg.substr(1, 4) == "join")
-					{
-						printf("Here2\n");
-						std::string roomName = msg.substr(6);
-
-						std::map < std::string, std::vector<Client>>::iterator it;
-
-						it = Rooms.find(roomName);
-						if (it != Rooms.end())
-						{
-							printf("Here3\n");
-							std::vector<Client>* clientsInTheRoom = &Rooms[roomName];
-							clientsInTheRoom->push_back(client);
-							Server::Broadcast(client.clientName + " has joined " + roomName, roomName);
-							printf("%s\n\n", client.roomName.c_str());
-							continue;
-						}
-					}
-				}
-
-				msg.append(buf);
-				std::cout << msg << std::endl;
-				iSendResult = send(client.clientSocket, buf, recvResult, 0);*/
 			}
 		}
 	}

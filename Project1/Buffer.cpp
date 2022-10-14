@@ -7,15 +7,7 @@ Buffer::Buffer(size_t size)
 	m_ReadIndex = 0;
 }
 
-//Buffer::Buffer(uint8_t* buf, size_t size)
-//{
-//	for (size_t i = 0; i < size; i++)
-//	{
-//		m_Buffer.push_back(buf[i]);
-//	}
-//}
-
-
+// serialize 4 bytes value
 void Buffer::WriteInt32LE(std::size_t index, int32_t value)
 {
 	m_Buffer[index] = value;
@@ -25,6 +17,7 @@ void Buffer::WriteInt32LE(std::size_t index, int32_t value)
 	m_WriteIndex = index;
 }
 
+// serialize 4 bytes value
 void Buffer::WriteInt32LE(int32_t value)
 {
 	m_Buffer[m_WriteIndex++] = value;
@@ -33,23 +26,22 @@ void Buffer::WriteInt32LE(int32_t value)
 	m_Buffer[m_WriteIndex++] = value >> 24;
 }
 
+// serialize 2 bytes value
 void Buffer::WriteInt16LE(std::size_t index, int16_t value)
 {
 	m_Buffer[index] = value;
 	m_Buffer[index + 1] = value >> 8;
-	m_Buffer[index + 2] = value >> 16;
-	m_Buffer[index + 3] = value >> 24;
 	m_WriteIndex = index;
 }
 
+// serialize 4 bytes value
 void Buffer::WriteInt16LE(int16_t value)
 {
 	m_Buffer[m_WriteIndex++] = value;
 	m_Buffer[m_WriteIndex++] = value >> 8;
-	m_Buffer[m_WriteIndex++] = value >> 16;
-	m_Buffer[m_WriteIndex++] = value >> 24;
 }
 
+// deserialize 4 bytes value
 int32_t Buffer::ReadInt32LE(size_t index)
 {
 	int32_t value = m_Buffer[index];
@@ -59,7 +51,7 @@ int32_t Buffer::ReadInt32LE(size_t index)
 	return value;
 }
 
-
+// deserialize 4 bytes value
 int32_t Buffer::ReadInt32LE()
 {
 	int32_t value = m_Buffer[m_ReadIndex++];
@@ -69,25 +61,23 @@ int32_t Buffer::ReadInt32LE()
 	return value;
 }
 
+// dserialize 2 bytes value
 int16_t Buffer::ReadInt16LE(size_t index)
 {
 	int16_t value = m_Buffer[index];
 	value |= m_Buffer[index + 1] << 8;
-	value |= m_Buffer[index + 2] << 16;
-	value |= m_Buffer[index + 3] << 24;
 	return value;
 }
 
-
+// dserialize 2 bytes value
 int16_t Buffer::ReadInt16LE()
 {
 	int16_t value = m_Buffer[m_ReadIndex++];
 	value |= m_Buffer[m_ReadIndex++] << 8;
-	value |= m_Buffer[m_ReadIndex++] << 16;
-	value |= m_Buffer[m_ReadIndex++] << 24;
 	return value;
 }
 
+// serialize string
 void Buffer::WriteString(std::size_t index, std::string value)
 {
 	for (int i = 0; i < value.size(); i++)
@@ -96,6 +86,7 @@ void Buffer::WriteString(std::size_t index, std::string value)
 	}
 }
 
+// serialize string
 void Buffer::WriteString(std::string value)
 {
 	for (int i = 0; i < value.size(); i++)
@@ -104,6 +95,7 @@ void Buffer::WriteString(std::string value)
 	}
 }
 
+// deserialize string
 std::string Buffer::ReadString(std::size_t length)
 {
 	std::string msg = "";
