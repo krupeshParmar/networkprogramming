@@ -19,18 +19,18 @@
 *			- The build is now created for Client, open Client.exe from the selected config directory
 *		-> Server
 *			- Select any platform x86 or x64
-*			- Select any any configuration Debug or Release
+*			- Select any configuration Debug or Release
 *			- Right click on "Project1" from Solution Explorer and "Clean" the solution (during first time build only)
 *			- Right click on "Project1" from Solution Explorer and hit build
 *			- The build is now created for Server, open Project1.exe from the selected config directory
 *
 *	b) How to run this project:
-*		- After building, an "exe" file will have been generated inside the "Project1" or "Client" dir/{selected config path}
+*		- After building, an "exe" file will have been generated inside the "Project1" dir/{selected config path}
 *
 *	c) User inputs:
 *		- Keyboard inputs required for Client.exe
 *		- Type according to the messages displayed on the screen
-* 
+*	References: https://learn.microsoft.com/en-us/windows/win32/winsock/using-winsock
 */
 
 #include <stdio.h>
