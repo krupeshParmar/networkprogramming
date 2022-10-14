@@ -1,4 +1,2 @@
-﻿  Server.cpp
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(281,21): warning C4018: '<': signed/unsigned mismatch
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(370,21): warning C4018: '<': signed/unsigned mismatch
+﻿  server_main.cpp
   Project1.vcxproj -> D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Debug\Project1.exe

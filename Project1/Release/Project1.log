@@ -1,9 +1,7 @@
-﻿  Server.cpp
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(281,21): warning C4018: '<': signed/unsigned mismatch
-D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(370,21): warning C4018: '<': signed/unsigned mismatch
+﻿  server_main.cpp
   Generating code
-  1 of 246 functions ( 0.4%) were compiled, the rest were copied from previous compilation.
+  0 of 246 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    2 functions had inline decision re-evaluated but remain unchanged
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   Project1.vcxproj -> D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Release\Project1.exe

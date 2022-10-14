@@ -178,7 +178,7 @@ int Client::SendAndReceive()
 	std::string my_msg = "";
 
 	// chat loop
-	printf("\n[Type here]:");
+	printf("\n Message: ");
 	do {
 		const int buflen = DEFAULT_BUFLEN;
 		uint8_t data[buflen];
@@ -217,9 +217,9 @@ int Client::SendAndReceive()
 				std::cout << "\n[" << roomName << "] " << "[" << senderName << "] " << message << std::endl;
 			}
 			if (Client::roomName.size() > 0)
-				std::cout << "\n[" << Client::roomName << "] " << "[Type here]: " << my_msg;
+				std::cout << "\n[" << Client::roomName << "] " << " Message: " << my_msg;
 			else
-				std::cout << "\n[Type here]: " << my_msg;
+				std::cout << "\n Message: " << my_msg;
 		}
 
 		// if we receive zero, then connection  has been closed by server
@@ -248,9 +248,9 @@ int Client::SendAndReceive()
 				if (my_msg.length() > 0)
 					my_msg.pop_back();
 				if(roomName.size() > 0)
-					std::cout << "\n[" << roomName << "] " << "[Type here]: " << my_msg;
+					std::cout << "\n[" << roomName << "] " << " Message: " << my_msg;
 				else
-					std::cout << "\n[Type here]: " << my_msg;
+					std::cout << "\n Message: " << my_msg;
 			}
 
 			if (ch == 13 && my_msg.size() > 0)		// If enter is hit, and my_msg has at least one element
@@ -397,9 +397,9 @@ int Client::SendAndReceive()
 
 				my_msg.clear();
 				if (Client::roomName.size() > 0)
-					std::cout << "\n[" << Client::roomName << "] " << "[Type here]: " << my_msg;
+					std::cout << "\n[" << Client::roomName << "] " << " Message: " << my_msg;
 				else
-					std::cout << "\n[Type here]: " << my_msg;
+					std::cout << "\n Message: " << my_msg;
 			}
 		}
 	} while (!quit);	// If not quit, continue the loop
