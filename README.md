@@ -1,7 +1,6 @@
 # networkprogramming_Project1
-
-project 1 of network programming
-Student name:	Krupesh Ashok Parmar
+	
+	Student name:	Krupesh Ashok Parmar
 	Student number:	1124374
 	Student mail:	k_parmar180076@fanshaweonline.ca
 
