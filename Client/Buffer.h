@@ -30,4 +30,5 @@ public:
 private:
 	int m_WriteIndex = 0;
 	int m_ReadIndex = 0;
+	size_t N;
 };

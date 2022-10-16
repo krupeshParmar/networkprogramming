@@ -2,7 +2,8 @@
 
 Buffer::Buffer(size_t size)
 {
-	m_Buffer.resize(size);
+	N = size;
+	m_Buffer.resize(N);
 	m_WriteIndex = 0;
 	m_ReadIndex = 0;
 }
@@ -15,6 +16,13 @@ void Buffer::WriteInt32LE(std::size_t index, int32_t value)
 	m_Buffer[index + 2] = value >> 16;
 	m_Buffer[index + 3] = value >> 24;
 	m_WriteIndex = index;
+
+	// resize
+	if (m_WriteIndex < N && m_WriteIndex >= N - 5)
+	{
+		N *= 2;
+		m_Buffer.resize(N);
+	}
 }
 
 // serialize 4 bytes value
@@ -24,6 +32,14 @@ void Buffer::WriteInt32LE(int32_t value)
 	m_Buffer[m_WriteIndex++] = value >> 8;
 	m_Buffer[m_WriteIndex++] = value >> 16;
 	m_Buffer[m_WriteIndex++] = value >> 24;
+
+
+	// resize
+	if (m_WriteIndex < N && m_WriteIndex >= N - 5)
+	{
+		N *= 2;
+		m_Buffer.resize(N);
+	}
 }
 
 // serialize 2 bytes value
@@ -32,6 +48,13 @@ void Buffer::WriteInt16LE(std::size_t index, int16_t value)
 	m_Buffer[index] = value;
 	m_Buffer[index + 1] = value >> 8;
 	m_WriteIndex = index;
+
+	// resize
+	if (m_WriteIndex < N && m_WriteIndex >= N - 3)
+	{
+		N *= 2;
+		m_Buffer.resize(N);
+	}
 }
 
 // serialize 4 bytes value
@@ -39,6 +62,14 @@ void Buffer::WriteInt16LE(int16_t value)
 {
 	m_Buffer[m_WriteIndex++] = value;
 	m_Buffer[m_WriteIndex++] = value >> 8;
+
+
+	// resize
+	if (m_WriteIndex < N && m_WriteIndex >= N - 3)
+	{
+		N *= 2;
+		m_Buffer.resize(N);
+	}
 }
 
 // deserialize 4 bytes value
