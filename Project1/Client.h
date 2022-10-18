@@ -14,5 +14,6 @@ public:
 	SOCKET clientSocket;
 	bool connected;
 	std::string clientName;
-	std::string roomName;
+	int rooms[5] = {0,0,0,0,0};
+	int roomsJoined = 0;
 };

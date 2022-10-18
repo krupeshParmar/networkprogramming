@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <conio.h>
+#include <sstream>
 #include "Buffer.h"
 #include "Protocol.h"
 
@@ -10,7 +11,7 @@
 // Initialize with empty room
 Client::Client()
 {
-	roomName = "";
+
 }
 
 // shutdown socket
@@ -136,6 +137,20 @@ int Client::IOCtlSocket()
 	return 0;
 }
 
+int Client::GetRoomId(std::string roomName)
+{
+	int id = -1;
+	for (int i = 0; i < 5; i++)
+	{
+		if (Rooms[i] == roomName)
+		{
+			id = i;
+			break;
+		}
+	}
+	return id;
+}
+
 /// <summary>
 /// Send and receive messages
 /// </summary>
@@ -201,9 +216,15 @@ int Client::SendAndReceive()
 			int msgSize = buffer.ReadInt32LE();
 			std::string message = buffer.ReadString(msgSize);
 
+			int roomid = Client::GetRoomId(roomName);
 			if (messageType == JOIN)
 			{
-				Client::roomName = roomName;
+				roomsJoined[roomid] = 1;
+			}
+
+			if (messageType == LEAVE)
+			{
+				roomsJoined[roomid] = 0;
 			}
 
 			// display  the received messages
@@ -216,10 +237,7 @@ int Client::SendAndReceive()
 			else {
 				std::cout << "\n[" << roomName << "] " << "[" << senderName << "] " << message << std::endl;
 			}
-			if (Client::roomName.size() > 0)
-				std::cout << "\n[" << Client::roomName << "] " << " Message: " << my_msg;
-			else
-				std::cout << "\n Message: " << my_msg;
+			std::cout << "\n Message: " << my_msg;
 		}
 
 		// if we receive zero, then connection  has been closed by server
@@ -247,16 +265,13 @@ int Client::SendAndReceive()
 			{
 				if (my_msg.length() > 0)
 					my_msg.pop_back();
-				if(roomName.size() > 0)
-					std::cout << "\n[" << roomName << "] " << " Message: " << my_msg;
-				else
-					std::cout << "\n Message: " << my_msg;
+				std::cout << "\n Message: " << my_msg;
 			}
 
 			if (ch == 13 && my_msg.size() > 0)		// If enter is hit, and my_msg has at least one element
 			{
 					
-				if (my_msg == "quit")				// If the message is "quit" then exit the app
+				if (my_msg == "_quit")				// If the message is "quit" then exit the app
 					quit = 1;
 				if (my_msg.substr(0, 5) == "_join")	// If the message is "_join" then try to join the provided room
 				{
@@ -301,7 +316,7 @@ int Client::SendAndReceive()
 					MessagePacket packet;
 					packet.header.messageType = HELP;
 					packet.content.senderName = clientName;
-					packet.content.roomName = roomName;
+					packet.content.roomName = "";
 					packet.content.message = "help";
 					packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 						+ 4 + packet.content.roomName.size()
@@ -329,14 +344,16 @@ int Client::SendAndReceive()
 						return 1;
 					}
 				}
-				else if (my_msg == "_leave")		// If the message is "_leave" then try to leave the current room
+				else if (my_msg.substr(0, 6) == "_leave")		// If the message is "_leave" then try to leave the current room
 				{
-					if (Client::roomName != "")		// first check whether we are in a room
+					if (my_msg.length() > 7)
 					{
+						std::string tempRoomName = my_msg.substr(7);
+
 						MessagePacket packet;
 						packet.header.messageType = LEAVE;
 						packet.content.senderName = clientName;
-						packet.content.roomName = roomName;
+						packet.content.roomName = tempRoomName;
 						packet.content.message = "leaving";
 						packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 							+ 4 + packet.content.roomName.size()
@@ -353,7 +370,6 @@ int Client::SendAndReceive()
 						buffer.WriteString(packet.content.message);
 						char* bufPtr = (char*)&(buffer.m_Buffer[0]);
 						iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
-						Client::roomName = "";
 
 						if (iResult == SOCKET_ERROR)
 						{
@@ -364,42 +380,64 @@ int Client::SendAndReceive()
 						}
 					}
 				}
-				else {					// If it is just a normal message then try to send it to the current room
-					MessagePacket packet;
-					packet.header.messageType = MESSAGE;
-					packet.content.senderName = clientName;
-					packet.content.roomName = roomName;
-					packet.content.message = my_msg;
-					packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
-						+ 4 + packet.content.roomName.size()
-						+ 4 + packet.content.message.size();
-
-					Buffer buffer = Buffer(packet.header.packetLength);
-					buffer.WriteInt32LE(packet.header.packetLength);
-					buffer.WriteInt16LE(packet.header.messageType);
-					buffer.WriteInt32LE(packet.content.senderName.size());
-					buffer.WriteString(packet.content.senderName);
-					buffer.WriteInt32LE(packet.content.roomName.size());
-					buffer.WriteString(packet.content.roomName);
-					buffer.WriteInt32LE(packet.content.message.size());
-					buffer.WriteString(packet.content.message);
-					char* bufPtr = (char*)&(buffer.m_Buffer[0]);
-					iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
-
-					if (iResult == SOCKET_ERROR)
+				else if(my_msg.substr(0, 5) == "_send")		// If it is just a normal message then try to send it to the current room
+				{
+					if (my_msg.length() > 6)
 					{
-						printf("send failed: %d\n", WSAGetLastError());
-						closesocket(ConnectSocket);
-						WSACleanup();
-						return 1;
+						std::string command = my_msg.substr(6);
+						std::stringstream ss(command);
+						std::string roomName;
+						ss >> roomName;
+						if (roomsJoined[Client::GetRoomId(roomName)])
+						{
+							//std::cout << roomName << "\n";
+							std::string message = "";
+							std::string words;
+
+							while (ss >> words)
+								message += words;
+							MessagePacket packet;
+							packet.header.messageType = MESSAGE;
+							packet.content.senderName = clientName;
+							packet.content.roomName = roomName;
+							packet.content.message = message;
+							packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+								+ 4 + packet.content.roomName.size()
+								+ 4 + packet.content.message.size();
+
+							Buffer buffer = Buffer(packet.header.packetLength);
+							buffer.WriteInt32LE(packet.header.packetLength);
+							buffer.WriteInt16LE(packet.header.messageType);
+							buffer.WriteInt32LE(packet.content.senderName.size());
+							buffer.WriteString(packet.content.senderName);
+							buffer.WriteInt32LE(packet.content.roomName.size());
+							buffer.WriteString(packet.content.roomName);
+							buffer.WriteInt32LE(packet.content.message.size());
+							buffer.WriteString(packet.content.message);
+							char* bufPtr = (char*)&(buffer.m_Buffer[0]);
+							iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
+
+							if (iResult == SOCKET_ERROR)
+							{
+								printf("send failed: %d\n", WSAGetLastError());
+								closesocket(ConnectSocket);
+								WSACleanup();
+								return 1;
+							}
+						}
+						else {
+							std::cout << "\n" << roomName << " not joined\n";
+						}
+						
+					}
+					else
+					{
+						std::cout << "\nInvalid commands\n";
 					}
 				}
 
 				my_msg.clear();
-				if (Client::roomName.size() > 0)
-					std::cout << "\n[" << Client::roomName << "] " << " Message: " << my_msg;
-				else
-					std::cout << "\n Message: " << my_msg;
+				std::cout << "\n Message: " << my_msg;
 			}
 		}
 	} while (!quit);	// If not quit, continue the loop

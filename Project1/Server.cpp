@@ -12,8 +12,10 @@ Server::Server()
 {
 	helpString = "\nRooms you can join:\n\tgeneral\n\tresources\n\tpolls\n\tannouncements\n\toff-topic";
 	helpString += "\nUse _join room_name command to join a room\n";
+	helpString += "\nUse _send room_name message command to send message to the room\n";
 	helpString += "\nUse _leave command to leave the room\n";
 	helpString += "\nUse _help command to get help\n";
+	helpString += "\nUse _quit command to exit\n";
 }
 
 // close socket
@@ -170,7 +172,6 @@ int Server::Accept()
 			int msgSize = buffer.ReadInt32LE();
 			std::string msg = buffer.ReadString(msgSize);
 			client.clientName = msg;
-			client.roomName = "";
 			if (msg == client.clientName)
 			{
 				MessagePacket packet;
@@ -202,6 +203,20 @@ int Server::Accept()
 		clients.push_back(client);
 	}
 	return 0;
+}
+
+int Server::GetRoomId(std::string roomName)
+{
+	int id = -1;
+	for (int i = 0; i < TOTAL_ROOMS; i++)
+	{
+		if (Rooms[i] == roomName)
+		{
+			id = i;
+			break;
+		}
+	}
+	return id;
 }
 
 /// <summary>
@@ -251,36 +266,64 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 	// If room exists...
 	if (roomFound)
 	{
+		int roomID = GetRoomId(roomName);
 		// If message type is join, add the client to the room, and send them a welcome message
 		if (messageType == JOIN)
 		{
-			MessagePacket packet;
+			if(sender.rooms[roomID])
+			{
+				MessagePacket packet;
 
-			packet.header.messageType = JOIN;
-			packet.content.roomName = roomName;
-			packet.content.senderName = sender.clientName;
-			packet.content.message = "\nWelcome to "+roomName + "\n";
-			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
-				+ 4 + packet.content.roomName.size()
-				+ 4 + packet.content.message.size();
+				packet.header.messageType = MESSAGE;
+				packet.content.roomName = roomName;
+				packet.content.senderName = sender.clientName;
+				packet.content.message = "\nAlready joined " + roomName + "\n";
+				packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+					+ 4 + packet.content.roomName.size()
+					+ 4 + packet.content.message.size();
 
-			Buffer buffer = Buffer(packet.header.packetLength);
-			buffer.WriteInt32LE(packet.header.packetLength);
-			buffer.WriteInt16LE(packet.header.messageType);
-			buffer.WriteInt32LE(packet.content.senderName.size());
-			buffer.WriteString(packet.content.senderName);
-			buffer.WriteInt32LE(packet.content.roomName.size());
-			buffer.WriteString(packet.content.roomName);
-			buffer.WriteInt32LE(packet.content.message.size());
-			buffer.WriteString(packet.content.message);
-			sender.roomName = roomName;
-			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+				Buffer buffer = Buffer(packet.header.packetLength);
+				buffer.WriteInt32LE(packet.header.packetLength);
+				buffer.WriteInt16LE(packet.header.messageType);
+				buffer.WriteInt32LE(packet.content.senderName.size());
+				buffer.WriteString(packet.content.senderName);
+				buffer.WriteInt32LE(packet.content.roomName.size());
+				buffer.WriteString(packet.content.roomName);
+				buffer.WriteInt32LE(packet.content.message.size());
+				buffer.WriteString(packet.content.message);
+				iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+			}
+			else {
+				MessagePacket packet;
+
+				packet.header.messageType = JOIN;
+				packet.content.roomName = roomName;
+				packet.content.senderName = sender.clientName;
+				packet.content.message = "\nWelcome to " + roomName + "\n";
+				packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+					+ 4 + packet.content.roomName.size()
+					+ 4 + packet.content.message.size();
+
+				Buffer buffer = Buffer(packet.header.packetLength);
+				buffer.WriteInt32LE(packet.header.packetLength);
+				buffer.WriteInt16LE(packet.header.messageType);
+				buffer.WriteInt32LE(packet.content.senderName.size());
+				buffer.WriteString(packet.content.senderName);
+				buffer.WriteInt32LE(packet.content.roomName.size());
+				buffer.WriteString(packet.content.roomName);
+				buffer.WriteInt32LE(packet.content.message.size());
+				buffer.WriteString(packet.content.message);
+
+				sender.rooms[roomID] = 1;
+				iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+			}
+			
 		}
 
 		// Broadcast the message to all the clients in given room
 		for (int i = 0; i < clients.size(); i++)
 		{
-			if (clients[i].roomName == roomName)
+			if (clients[i].rooms[roomID])
 			{
 				MessagePacket packet;
 				std::cout << msg;
@@ -310,7 +353,29 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 
 		// if the message type is LEAVE, remove the client from the room
 		if (messageType == LEAVE)
-			sender.roomName = "";
+		{
+			sender.rooms[roomID] = 0;
+			MessagePacket packet;
+			packet.header.messageType = LEAVE;
+			packet.content.roomName = roomName;
+			packet.content.senderName = SERVER_NAME;
+			packet.content.message = "\nYou have left "+roomName+"\n";
+			packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+				+ 4 + packet.content.roomName.size()
+				+ 4 + packet.content.message.size();
+
+			Buffer buffer = Buffer(packet.header.packetLength);
+			buffer.WriteInt32LE(packet.header.packetLength);
+			buffer.WriteInt16LE(packet.header.messageType);
+			buffer.WriteInt32LE(packet.content.senderName.size());
+			buffer.WriteString(packet.content.senderName);
+			buffer.WriteInt32LE(packet.content.roomName.size());
+			buffer.WriteString(packet.content.roomName);
+			buffer.WriteInt32LE(packet.content.message.size());
+			buffer.WriteString(packet.content.message);
+			// Send the packet to room members
+			iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+		}
 		return iSendResult;
 	}
 	else {		// If the room not found ...
@@ -320,13 +385,13 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 		packet.content.senderName = SERVER_NAME;
 
 		// If the message type is join, tell client to enter a valid room name
-		if (messageType == JOIN)
+		if (messageType == JOIN || messageType == LEAVE)
 		{
 			packet.content.message = "No group named " + roomName + " exists.";
 			packet.content.message += "\n Use _help command to know about the server\n";
 		}
 		else {
-			packet.content.message = "\nPlease join a room first\n";
+			packet.content.message = "\nPlease input proper command\n";
 			packet.content.message += "\n Use _help command to know about the server\n";
 		}
 		packet.header.packetLength = 8 + 4 + packet.content.senderName.size()

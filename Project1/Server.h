@@ -25,6 +25,7 @@ private:
 	int BindSocket();
 	int Listen();
 	int Broadcast(std::string , std::string , Client&, int );
+	int GetRoomId(std::string);
 
 	// tried creating a map, but using iterator for such simple thing seemed unnecessary
 	//std::map < std::string, std::vector<Client>> Rooms;

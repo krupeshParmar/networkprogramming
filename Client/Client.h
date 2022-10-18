@@ -18,10 +18,12 @@ private:
 	int CreateSocket(const char*);
 	int ConnectingSocket();
 	int IOCtlSocket();
+	int GetRoomId(std::string);
+	std::string Rooms[5] = { "general", "resources", "polls", "announcements", "off-topic" };
 
 	int iResult, recvbuflen = DEFAULT_BUFLEN;;
 	WSADATA wsaData;
-	std::string roomName = "";
+	int roomsJoined[5] = {0,0,0,0,0};
 	SOCKET ConnectSocket = INVALID_SOCKET;
 	struct addrinfo* result = NULL, * ptr = NULL, hints;
 };
