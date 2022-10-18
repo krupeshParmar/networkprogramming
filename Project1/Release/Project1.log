@@ -1,1 +1,32 @@
-﻿
+﻿  Buffer.cpp
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(21,19): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(21,39): warning C4018: '>=': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(38,19): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(38,39): warning C4018: '>=': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(48,20): warning C4244: '=': conversion from 'int16_t' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=uint8_t
+          ]
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(53,19): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(53,39): warning C4018: '>=': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(63,29): warning C4244: '=': conversion from 'int16_t' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=uint8_t
+          ]
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(68,19): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(68,39): warning C4018: '>=': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(114,20): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(123,20): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Buffer.cpp(133,20): warning C4018: '<': signed/unsigned mismatch
+  Client.cpp
+  server_main.cpp
+  Server.cpp
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(324,21): warning C4018: '<': signed/unsigned mismatch
+D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Server.cpp(435,21): warning C4018: '<': signed/unsigned mismatch
+  Generating code
+  Previous IPDB not found, fall back to full compilation.
+  All 247 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Project1.vcxproj -> D:\KPsDocuments\GDP1\NetworkProgramming\Projects\Project1\Release\Project1.exe

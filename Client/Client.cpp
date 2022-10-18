@@ -395,7 +395,7 @@ int Client::SendAndReceive()
 							std::string words;
 
 							while (ss >> words)
-								message += words;
+								message += words + " ";
 							MessagePacket packet;
 							packet.header.messageType = MESSAGE;
 							packet.content.senderName = clientName;
