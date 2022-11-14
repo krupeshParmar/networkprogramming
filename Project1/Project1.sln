@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Client", "..\Client\Client.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Protocol", "..\Protocol\Protocol.vcxproj", "{E3454763-51FD-46EB-AF7B-BE3DF57B178D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AuthenticationServer", "..\AuthenticationServer\AuthenticationServer.vcxproj", "{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{E3454763-51FD-46EB-AF7B-BE3DF57B178D}.Release|x64.Build.0 = Release|x64
 		{E3454763-51FD-46EB-AF7B-BE3DF57B178D}.Release|x86.ActiveCfg = Release|Win32
 		{E3454763-51FD-46EB-AF7B-BE3DF57B178D}.Release|x86.Build.0 = Release|Win32
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Debug|x64.ActiveCfg = Debug|x64
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Debug|x64.Build.0 = Debug|x64
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Debug|x86.ActiveCfg = Debug|Win32
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Debug|x86.Build.0 = Debug|Win32
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Release|x64.ActiveCfg = Release|x64
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Release|x64.Build.0 = Release|x64
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Release|x86.ActiveCfg = Release|Win32
+		{EEEA56D3-D3C4-4F0C-8E34-46B86294B312}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
