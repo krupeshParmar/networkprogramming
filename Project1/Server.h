@@ -7,6 +7,8 @@
 #include <map>
 #include <vector>
 #include "Client.h"
+#include "Authenticator.h"
+#include "auth.pb.h"
 #define DEFAULT_BUFLEN 512
 #define TOTAL_ROOMS 5
 
@@ -26,6 +28,8 @@ private:
 	int Listen();
 	int Broadcast(std::string , std::string , Client&, int );
 	int GetRoomId(std::string);
+	int AuthenticateUser(authenticator::AuthenticateWeb* auth);
+	int AuthenticateUser(authenticator::CreateAccountWeb* auth);
 
 	// tried creating a map, but using iterator for such simple thing seemed unnecessary
 	//std::map < std::string, std::vector<Client>> Rooms;
@@ -36,6 +40,7 @@ private:
 	char recvbuf[DEFAULT_BUFLEN];
 	std::vector<Client> clients;
 	Client clientSocket;
+	Authenticator authenticatorServer;
 	int iResult, iSendResult, iSelectResult;
 	int recvbuflen = DEFAULT_BUFLEN;
 	WSADATA wsaData;

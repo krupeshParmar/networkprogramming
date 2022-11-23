@@ -15,6 +15,7 @@ int main()
 		return 1;
 	}
 	printf("WSAStartup success: %d\n", result);
+	result = authServer.ReceiveAndSend();
 
 	return 0;
 }

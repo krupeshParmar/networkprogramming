@@ -26,6 +26,21 @@ Server::~Server()
 	WSACleanup();
 }
 
+int SendMessageTo(Client client, MessagePacket packet)
+{
+	Buffer buffer = Buffer(packet.header.packetLength);
+	buffer.WriteInt32LE(packet.header.packetLength);
+	buffer.WriteInt16LE(packet.header.messageType);
+	buffer.WriteInt32LE(packet.content.senderName.size());
+	buffer.WriteString(packet.content.senderName);
+	buffer.WriteInt32LE(packet.content.roomName.size());
+	buffer.WriteString(packet.content.roomName);
+	buffer.WriteInt32LE(packet.content.message.size());
+	buffer.WriteString(packet.content.message);
+
+	return send(client.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+}
+
 /// <summary>
 /// Initialize the Winsock connection
 /// </summary>
@@ -172,6 +187,41 @@ int Server::Accept()
 			int msgSize = buffer.ReadInt32LE();
 			std::string msg = buffer.ReadString(msgSize);
 			client.clientName = msg;
+			client.authenticated = false;
+			if (client.clientName == "AUTH")
+			{
+				std::cout << "Encountered auth" << std::endl;
+				authenticatorServer.AuthSocket = clientSocket; 
+				authenticator::AuthenticateWeb auth;
+				auth.set_requestid(time(NULL));
+				auth.set_plaintextpassword("password");
+				auth.set_email("user@fanshawe.ca");
+				MessagePacket packet;
+				std::cout << client.clientName << " connected" << std::endl;
+				packet.header.messageType = MESSAGE;
+				packet.content.roomName = SERVER_NAME;
+				packet.content.senderName = SERVER_NAME;
+				packet.content.message = "Welcome";
+
+				packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+					+ 4 + packet.content.roomName.size()
+					+ 4 + packet.content.message.size();
+
+				// Serialize message
+				Buffer buffer = Buffer(packet.header.packetLength);
+				buffer.WriteInt32LE(packet.header.packetLength);
+				buffer.WriteInt16LE(packet.header.messageType);
+				buffer.WriteInt32LE(packet.content.senderName.size());
+				buffer.WriteString(packet.content.senderName);
+				buffer.WriteInt32LE(packet.content.roomName.size());
+				buffer.WriteString(packet.content.roomName);
+				buffer.WriteInt32LE(packet.content.message.size());
+				buffer.WriteString(packet.content.message);
+				// Send the welcome message to the client
+				iSendResult = send(authenticatorServer.AuthSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+				authenticatorServer.connected = true;
+				return 0;
+			}
 			if (msg == client.clientName)
 			{
 				MessagePacket packet;
@@ -217,6 +267,68 @@ int Server::GetRoomId(std::string roomName)
 		}
 	}
 	return id;
+}
+
+
+int Server::AuthenticateUser(authenticator::AuthenticateWeb* auth)
+{
+	MessagePacket packet;
+	GOOGLE_PROTOBUF_VERIFY_VERSION;
+	packet.content.message = auth->SerializeAsString();
+	std::cout << packet.content.message;
+
+	packet.header.messageType = LOGIN;
+	packet.content.roomName = SERVER_NAME;
+	packet.content.senderName = SERVER_NAME;
+
+	packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+		+ 4 + packet.content.roomName.size()
+		+ 4 + packet.content.message.size();
+
+	// Serialize message
+	Buffer buffer = Buffer(packet.header.packetLength);
+	buffer.WriteInt32LE(packet.header.packetLength);
+	buffer.WriteInt16LE(packet.header.messageType);
+	buffer.WriteInt32LE(packet.content.senderName.size());
+	buffer.WriteString(packet.content.senderName);
+	buffer.WriteInt32LE(packet.content.roomName.size());
+	buffer.WriteString(packet.content.roomName);
+	buffer.WriteInt32LE(packet.content.message.size());
+	buffer.WriteString(packet.content.message);
+	// Send the welcome message to the client
+	iSendResult = send(authenticatorServer.AuthSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+
+	return iSendResult;
+}
+int Server::AuthenticateUser(authenticator::CreateAccountWeb* auth)
+{
+	MessagePacket packet;
+	GOOGLE_PROTOBUF_VERIFY_VERSION;
+	packet.content.message = auth->SerializeAsString();
+	std::cout << packet.content.message;
+
+	packet.header.messageType = REGISTER;
+	packet.content.roomName = SERVER_NAME;
+	packet.content.senderName = SERVER_NAME;
+
+	packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+		+ 4 + packet.content.roomName.size()
+		+ 4 + packet.content.message.size();
+
+	// Serialize message
+	Buffer buffer = Buffer(packet.header.packetLength);
+	buffer.WriteInt32LE(packet.header.packetLength);
+	buffer.WriteInt16LE(packet.header.messageType);
+	buffer.WriteInt32LE(packet.content.senderName.size());
+	buffer.WriteString(packet.content.senderName);
+	buffer.WriteInt32LE(packet.content.roomName.size());
+	buffer.WriteString(packet.content.roomName);
+	buffer.WriteInt32LE(packet.content.message.size());
+	buffer.WriteString(packet.content.message);
+	// Send the welcome message to the client
+	iSendResult = send(authenticatorServer.AuthSocket, (const char*)&(buffer.m_Buffer[0]), packet.header.packetLength, 0);
+
+	return iSendResult;
 }
 
 /// <summary>
@@ -410,7 +522,7 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 		buffer.WriteString(packet.content.message);
 
 		// send the serialized packet
-		iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), 512, 0);
+		iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), packet.header.packetLength, 0);
 		return iSendResult;
 	}	
 }
@@ -441,6 +553,9 @@ int Server::ReceiveAndSend()
 			}
 		}
 
+		if (authenticatorServer.connected)
+			FD_SET(authenticatorServer.AuthSocket, &socketsReadyForReading);
+
 		// perform synchronous I/O
 		iSelectResult = select(0, &socketsReadyForReading, NULL, NULL, &tv);
 		if (iSelectResult == SOCKET_ERROR)
@@ -455,8 +570,198 @@ int Server::ReceiveAndSend()
 		{
 			printf("\n");
 			Server::Accept();
+			continue;
 		}
 
+		/*if (FD_ISSET(authenticatorServer.AuthSocket, &socketsReadyForReading))
+		{
+			const int buflen = 128;
+			uint8_t data[buflen];
+
+			int recvResult = recv(authenticatorServer.AuthSocket, (char*)&data[0], buflen, 0);
+
+			if (recvResult == 0)
+			{
+				std::cout << "Authenticator disconnected" << std::endl;
+				continue;
+			}
+
+			if (recvResult > 0)
+			{
+				int sendResult = -10;
+				Buffer buffer = Buffer(recvResult);
+				for (int i = 0; i < recvResult; i++)
+				{
+					buffer.m_Buffer[i] = data[i];
+				}
+
+				// Deserialize received message
+				int packetlength = buffer.ReadInt32LE();
+				int messageType = buffer.ReadInt16LE();
+				int senderNameSize = buffer.ReadInt32LE();
+				std::string senderName = buffer.ReadString(senderNameSize);
+				int roomNameSize = buffer.ReadInt32LE();
+				std::string roomName = buffer.ReadString(roomNameSize);
+				int msgSize = buffer.ReadInt32LE();
+				std::string msg = buffer.ReadString(msgSize);
+				std::cout << msg << std::endl;
+				
+				// If send failed, print "Error"
+				if (sendResult < 0)
+					printf("\nError\n");
+			}
+		}*/
+		if (authenticatorServer.AuthSocket != INVALID_SOCKET)
+		{
+			if (FD_ISSET(authenticatorServer.AuthSocket, &socketsReadyForReading))
+			{
+				const int buflen = 128;
+				uint8_t data[buflen];
+
+				int recvResult = recv(authenticatorServer.AuthSocket, (char*)&data[0], buflen, 0);
+
+				if (recvResult == 0)
+				{
+					std::cout << "Authenticator disconnected" << std::endl;
+					continue;
+				}
+
+				if (recvResult > 0)
+				{
+					int sendResult = -10;
+					Buffer buffer = Buffer(recvResult);
+					for (int i = 0; i < recvResult; i++)
+					{
+						buffer.m_Buffer[i] = data[i];
+					}
+					/*try {*/
+						// Deserialize received message
+					int packetlength = buffer.ReadInt32LE();
+					int messageType = buffer.ReadInt16LE();
+					int senderNameSize = buffer.ReadInt32LE();
+					std::string senderName = buffer.ReadString(senderNameSize);
+					int roomNameSize = buffer.ReadInt32LE();
+					std::string roomName = buffer.ReadString(roomNameSize);
+					int msgSize = buffer.ReadInt32LE();
+					std::string message = buffer.ReadString(msgSize);
+					int break_me = 0;
+					/*}
+					catch (std::exception e)
+					{
+						std::wcout << e.what() << std::endl;
+						continue;
+					}*/
+					authenticator::CreateAccountWebFailure regFail;
+					authenticator::CreateAccountWebSuccess regSucc;
+					authenticator::AuthenticateWebSuccess logSucc;
+					authenticator::AuthenticateWebFailure logFail;
+
+					MessagePacket packet;
+					switch (messageType)
+					{
+					case REG_FAIL:
+						regFail.ParseFromString(message);
+						for (Client client : clients)
+						{
+							if (client.requestID == regFail.requestid())
+							{
+								packet.header.messageType = REG_FAIL;
+								packet.content.roomName = SERVER_NAME;
+								packet.content.senderName = SERVER_NAME;
+								packet.content.message = "\nFailed to register account";
+								packet.content.message += "\nBecause: ";
+								switch (regFail.failreason())
+								{
+									case
+									authenticator::CreateAccountWebFailure_reason::CreateAccountWebFailure_reason_ACCOUNT_ALREADY_EXISTS:
+										packet.content.message += "Account already exists";
+										break;
+										case
+										authenticator::CreateAccountWebFailure_reason::CreateAccountWebFailure_reason_INVALID_PASSWORD:
+											packet.content.message += "Invalid credentials";
+											break;
+											case
+											authenticator::CreateAccountWebFailure_reason::CreateAccountWebFailure_reason_INTERNAL_SERVER_ERROR:
+												packet.content.message += "Internal Server Error";
+												break;
+											default:
+												break;
+								}
+								packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+									+ 4 + packet.content.roomName.size()
+									+ 4 + packet.content.message.size();
+								iSendResult = SendMessageTo(client, packet);
+							}
+						}
+						break;
+					case REG_SUCC:
+						regSucc.ParseFromString(message);
+						for (Client client : clients)
+						{
+							if (client.requestID == regSucc.requestid())
+							{
+								packet.header.messageType = REG_SUCC;
+								packet.content.roomName = SERVER_NAME;
+								packet.content.senderName = SERVER_NAME;
+								packet.content.message = "\nAccount created succesfully";
+								packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+									+ 4 + packet.content.roomName.size()
+									+ 4 + packet.content.message.size();
+								iSendResult = SendMessageTo(client, packet);
+							}
+						}
+						break;
+					case LOG_FAIL:
+						logFail.ParseFromString(message);
+						for (Client client : clients)
+						{
+							if (client.requestID == logFail.requestid())
+							{
+								packet.header.messageType = LOG_FAIL;
+								packet.content.roomName = SERVER_NAME;
+								packet.content.senderName = SERVER_NAME;
+								packet.content.message = "\nFailed to login";
+								packet.content.message += "\nBecause: ";
+								switch (logFail.failreason())
+								{
+									case
+									authenticator::AuthenticateWebFailure_reason::AuthenticateWebFailure_reason_INVALID_CREDENTIALS:
+										packet.content.message += "Invalid credentials";
+										break;
+									case authenticator::AuthenticateWebFailure_reason::AuthenticateWebFailure_reason_INTERNAL_SERVER_ERROR:
+										packet.content.message += "Internal Server Error";
+										break;
+									default:
+										break;
+								}
+								packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+									+ 4 + packet.content.roomName.size()
+									+ 4 + packet.content.message.size();
+								iSendResult = SendMessageTo(client, packet);
+							}
+						}
+						break;
+					case LOG_SUCC:
+						logSucc.ParseFromString(message);
+						for (Client client : clients)
+						{
+							if (client.requestID == logSucc.requestid())
+							{
+								packet.header.messageType = LOG_SUCC;
+								packet.content.roomName = SERVER_NAME;
+								packet.content.senderName = SERVER_NAME;
+								packet.content.message = "\nLogged in successfully";
+								packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+									+ 4 + packet.content.roomName.size()
+									+ 4 + packet.content.message.size();
+								iSendResult = SendMessageTo(client, packet);
+							}
+						}
+						break;
+					}
+				}
+			}
+		}
 		// Look for new messages from all the connected clients
 		for (int i = clients.size() - 1; i >= 0; i--)
 		{
@@ -498,6 +803,8 @@ int Server::ReceiveAndSend()
 					std::string msg = buffer.ReadString(msgSize);
 					std::cout << msg << std::endl;
 
+					authenticator::AuthenticateWeb loginAuth;
+					authenticator::CreateAccountWeb registerAuth;
 					// broadcast message, depending on the message type
 					switch (messageType)
 					{
@@ -512,6 +819,19 @@ int Server::ReceiveAndSend()
 						break;
 					case HELP:
 						sendResult = Server::Broadcast(msg + "\n", roomName, client, messageType);
+						break;
+					case LOGIN:
+						loginAuth.ParseFromString(msg);
+						client.email = loginAuth.email();
+						client.requestID = loginAuth.requestid();
+						std::cout << std::to_string(loginAuth.requestid()) << std::endl;
+						sendResult = this->AuthenticateUser(&loginAuth);
+						break;
+					case REGISTER:
+						registerAuth.ParseFromString(msg);
+						client.email = registerAuth.email();
+						client.requestID = registerAuth.requestid();
+						sendResult = this->AuthenticateUser(&registerAuth);
 						break;
 					default:
 						break;

@@ -12,7 +12,10 @@ public:
 	Client(SOCKET socket);
 
 	SOCKET clientSocket;
+	std::string email;
+	int requestID;
 	bool connected;
+	bool authenticated = false;
 	std::string clientName;
 	int rooms[5] = {0,0,0,0,0};
 	int roomsJoined = 0;

@@ -3,6 +3,7 @@
 #include <WS2tcpip.h>
 #include <stdio.h>
 #include <string>
+#include "auth.pb.h"
 #define DEFAULT_BUFLEN 512
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -15,6 +16,7 @@ public:
 	int SendAndReceive();
 	std::string clientName = "";
 private:
+	bool authenticated = false;
 	int CreateSocket(const char*);
 	int ConnectingSocket();
 	int IOCtlSocket();

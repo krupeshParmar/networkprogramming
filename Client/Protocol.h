@@ -9,6 +9,12 @@ enum MessageType
 	LEAVE,
 	WELCOME,
 	HELP,
+	LOGIN,
+	REGISTER,
+	REG_FAIL,
+	REG_SUCC,
+	LOG_FAIL,
+	LOG_SUCC
 };
 
 // header for packet
