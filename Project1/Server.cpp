@@ -15,6 +15,8 @@ Server::Server()
 	helpString += "\nUse _send room_name message command to send message to the room\n";
 	helpString += "\nUse _leave command to leave the room\n";
 	helpString += "\nUse _help command to get help\n";
+	helpString += "\nUse _login 'email' 'password' command to login\n";
+	helpString += "\nUse _register 'email' 'password' command to register\n";
 	helpString += "\nUse _quit command to exit\n";
 }
 
@@ -368,6 +370,30 @@ int Server::Broadcast(std::string msg, std::string roomName, Client& sender, int
 		iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
 		return iSendResult;
 	}
+
+	if (!sender.authenticated)
+	{
+		MessagePacket packet;
+		packet.content.message = "Please login or register first";
+		packet.header.messageType = MESSAGE;
+		packet.content.roomName = SERVER_NAME;
+		packet.content.senderName = SERVER_NAME;
+		packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+			+ 4 + packet.content.roomName.size()
+			+ 4 + packet.content.message.size();
+
+		Buffer buffer = Buffer(packet.header.packetLength);
+		buffer.WriteInt32LE(packet.header.packetLength);
+		buffer.WriteInt16LE(packet.header.messageType);
+		buffer.WriteInt32LE(packet.content.senderName.size());
+		buffer.WriteString(packet.content.senderName);
+		buffer.WriteInt32LE(packet.content.roomName.size());
+		buffer.WriteString(packet.content.roomName);
+		buffer.WriteInt32LE(packet.content.message.size());
+		buffer.WriteString(packet.content.message);
+		iSendResult = send(sender.clientSocket, (const char*)&(buffer.m_Buffer[0]), DEFAULT_BUFLEN, 0);
+		return iSendResult;
+	}
 	bool roomFound = false;
 
 	// search whether the provided room exists
@@ -661,8 +687,9 @@ int Server::ReceiveAndSend()
 					{
 					case REG_FAIL:
 						regFail.ParseFromString(message);
-						for (Client client : clients)
+						for (int i = 0; i < clients.size(); i++)
 						{
+							Client& client = clients[i];
 							if (client.requestID == regFail.requestid())
 							{
 								packet.header.messageType = REG_FAIL;
@@ -696,25 +723,28 @@ int Server::ReceiveAndSend()
 						break;
 					case REG_SUCC:
 						regSucc.ParseFromString(message);
-						for (Client client : clients)
+						for (int i = 0; i < clients.size(); i++)
 						{
+							Client& client = clients[i];
 							if (client.requestID == regSucc.requestid())
 							{
 								packet.header.messageType = REG_SUCC;
 								packet.content.roomName = SERVER_NAME;
 								packet.content.senderName = SERVER_NAME;
-								packet.content.message = "\nAccount created succesfully";
+								packet.content.message = "\nAccount created succesfully\nYou can chat in rooms now";
 								packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 									+ 4 + packet.content.roomName.size()
 									+ 4 + packet.content.message.size();
+								client.authenticated = true;
 								iSendResult = SendMessageTo(client, packet);
 							}
 						}
 						break;
 					case LOG_FAIL:
 						logFail.ParseFromString(message);
-						for (Client client : clients)
+						for (int i = 0; i < clients.size(); i++)
 						{
+							Client& client = clients[i]; 
 							if (client.requestID == logFail.requestid())
 							{
 								packet.header.messageType = LOG_FAIL;
@@ -743,8 +773,9 @@ int Server::ReceiveAndSend()
 						break;
 					case LOG_SUCC:
 						logSucc.ParseFromString(message);
-						for (Client client : clients)
+						for (int i = 0; i < clients.size(); i++)
 						{
+							Client& client = clients[i];
 							if (client.requestID == logSucc.requestid())
 							{
 								packet.header.messageType = LOG_SUCC;
@@ -754,6 +785,7 @@ int Server::ReceiveAndSend()
 								packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 									+ 4 + packet.content.roomName.size()
 									+ 4 + packet.content.message.size();
+								client.authenticated = true;
 								iSendResult = SendMessageTo(client, packet);
 							}
 						}

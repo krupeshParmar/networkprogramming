@@ -1,11 +1,13 @@
 #define WIN32_LEAN_AND_MEAN
 #include "AuthServer.h"
-#define DEFAULT_PORT "5551"
+#define DEFAULT_PORT "5555"
 #define SERVER_NAME "GDP_AUTH_SERVER"
 #include <iostream>
 #include <string>
 #include "Buffer.h"
 #include "Protocol.h"
+#include <pugixml.hpp>
+#include "sha256.h"
 
 AuthServer::AuthServer()
 {
@@ -41,6 +43,228 @@ int SendMessageTo(SOCKET socket, MessagePacket packet)
 		std::cout << e.what();
 	}
 	return result;
+}
+
+
+int AuthServer::LoadUsers()
+{
+	pugi::xml_document doc;
+	if (!doc.load_file("userdata/userdata.xml"))
+	{
+		std::cout << "Couldn't open the file\n";
+		return -1;
+	}
+	pugi::xml_object_range<pugi::xml_node_iterator> usersNode
+		= doc.child("users").children();
+	pugi::xml_node_iterator usersIterator = usersNode.begin();
+	for (; usersIterator != usersNode.end(); usersIterator++)
+	{
+		pugi::xml_node userNode = *usersIterator;
+
+		std::string nodeName = userNode.name();
+		if (nodeName == "user")
+		{
+			User* user = new User();
+			pugi::xml_object_range<pugi::xml_node_iterator> userData = userNode.children();
+			for (
+				pugi::xml_node_iterator userDataIterator = userData.begin(); 
+				userDataIterator != userData.end(); 
+				userDataIterator++)
+			{
+				pugi::xml_node userDataNode = *userDataIterator;
+
+				std::string userDataName = userDataNode.name();
+				if (userDataName == "id")
+				{
+					user->ID = std::stol(userDataNode.child_value());
+				}
+				if (userDataName == "email")
+				{
+					user->email = userDataNode.child_value();
+				}
+				if (userDataName == "salt")
+				{
+					user->salt = userDataNode.child_value();
+				}
+				if (userDataName == "hashedPassword")
+				{
+					user->hashedPassword = userDataNode.child_value();
+				}
+				if (userDataName == "userID")
+				{
+					user->userID = std::stol(userDataNode.child_value());
+				}
+				if (userDataName == "last_login")
+				{
+					user->last_login = userDataNode.child_value();
+				}
+				if (userDataName == "creationDate")
+				{
+					user->creationDate = userDataNode.child_value();
+				}
+			}
+			this->users.push_back(user);
+		}
+	}
+}
+int AuthServer::SaveUsers()
+{
+	pugi::xml_document doc;
+	pugi::xml_node saveNode = doc.append_child("users");
+	for (int i = 0; i < users.size(); i++)
+	{
+		pugi::xml_node userNode = saveNode.append_child("user");
+
+		pugi::xml_node emailNode = userNode.append_child("email");
+		emailNode.append_child(pugi::node_pcdata).set_value(this->users[i]->email.c_str());
+
+		pugi::xml_node idNode = userNode.append_child("id");
+		idNode.append_child(pugi::node_pcdata).set_value(std::to_string(this->users[i]->ID).c_str());
+
+		pugi::xml_node saltlNode = userNode.append_child("salt");
+		saltlNode.append_child(pugi::node_pcdata).set_value(this->users[i]->salt.c_str());
+
+		pugi::xml_node hashedPasswordNode = userNode.append_child("hashedPassword");
+		hashedPasswordNode.append_child(pugi::node_pcdata).set_value(this->users[i]->hashedPassword.c_str());
+
+		pugi::xml_node userIDNode = userNode.append_child("userID");
+		userIDNode.append_child(pugi::node_pcdata).set_value(std::to_string(this->users[i]->userID).c_str());
+
+		pugi::xml_node last_loginNode = userNode.append_child("last_login");
+		last_loginNode.append_child(pugi::node_pcdata).set_value(this->users[i]->last_login.c_str());
+
+		pugi::xml_node creationDateNode = userNode.append_child("creationDate");
+		creationDateNode.append_child(pugi::node_pcdata).set_value(this->users[i]->creationDate.c_str());
+	}
+	doc.save_file("userdata/userdata.xml");
+	return 1;
+}
+int AuthServer::CreateUser(std::string email, std::string password, long int requestId)
+{
+	for (User* user : users)
+	{
+		if (user->email == email)
+		{
+			// Account already exists
+			authenticator::CreateAccountWebFailure regiFailure;
+			regiFailure.set_failreason(authenticator::CreateAccountWebFailure_reason_ACCOUNT_ALREADY_EXISTS);
+			regiFailure.set_requestid(requestId);
+			MessagePacket sendPacket;
+			sendPacket.header.messageType = REG_FAIL;
+			sendPacket.content.roomName = SERVER_NAME;
+			sendPacket.content.senderName = SERVER_NAME;
+			regiFailure.SerializeToString(&sendPacket.content.message);
+			sendPacket.header.packetLength = 8 + 4 + sendPacket.content.senderName.size()
+				+ 4 + sendPacket.content.roomName.size()
+				+ 4 + sendPacket.content.message.size();
+
+			iSendResult = SendMessageTo(chatserver.ChatSocket, sendPacket);
+			return -1;
+		}
+	}
+	// No account exist with "email"
+
+	srand(time(NULL));
+	authenticator::CreateAccountWeb regi;
+	User* user = new User();
+	user->email = email;
+	std::string salt = std::to_string((rand() % 1000000 + 1000000));
+	user->salt = salt;
+	SHA256 sha;
+	user->hashedPassword = sha(password + salt);
+	user->ID = rand() % 5000 + 1000;
+	user->last_login = std::to_string(time(NULL));
+	user->userID = time(NULL);
+	users.push_back(user);
+	if (this->SaveUsers() != 1)
+	{
+		authenticator::CreateAccountWebFailure regiFailure;
+		regiFailure.set_failreason(authenticator::CreateAccountWebFailure_reason_INTERNAL_SERVER_ERROR);
+		regiFailure.set_requestid(requestId);
+		MessagePacket sendPacket;
+		sendPacket.header.messageType = REG_FAIL;
+		sendPacket.content.roomName = SERVER_NAME;
+		sendPacket.content.senderName = SERVER_NAME;
+		regiFailure.SerializeToString(&sendPacket.content.message);
+		sendPacket.header.packetLength = 8 + 4 + sendPacket.content.senderName.size()
+			+ 4 + sendPacket.content.roomName.size()
+			+ 4 + sendPacket.content.message.size();
+
+		iSendResult = SendMessageTo(chatserver.ChatSocket, sendPacket);
+		return -1;
+	}
+	authenticator::CreateAccountWebSuccess regiSucc;
+	regiSucc.set_userid(user->userID);
+	regiSucc.set_requestid(requestId);
+	MessagePacket sendPacket;
+	sendPacket.header.messageType = REG_SUCC;
+	sendPacket.content.roomName = SERVER_NAME;
+	sendPacket.content.senderName = SERVER_NAME;
+	regiSucc.SerializeToString(&sendPacket.content.message);
+	sendPacket.header.packetLength = 8 + 4 + sendPacket.content.senderName.size()
+		+ 4 + sendPacket.content.roomName.size()
+		+ 4 + sendPacket.content.message.size();
+
+	iSendResult = SendMessageTo(chatserver.ChatSocket, sendPacket);
+	return 0;
+}
+int AuthServer::AuthenticateUser(std::string email, std::string password, long int requestId)
+{
+	for (User* user : users)
+	{
+		if (user->email == email)
+		{
+			SHA256 sha;
+			std::string hashedPassword = sha(password + user->salt);
+			if (user->hashedPassword == hashedPassword)
+			{
+				authenticator::AuthenticateWebSuccess loginSuccess;
+				loginSuccess.set_creationdate("23/11");
+				loginSuccess.set_userid(user->userID);
+				loginSuccess.set_requestid(requestId);
+				MessagePacket sendPacket;
+				sendPacket.header.messageType = LOG_SUCC;
+				sendPacket.content.roomName = SERVER_NAME;
+				sendPacket.content.senderName = SERVER_NAME;
+				loginSuccess.SerializeToString(&sendPacket.content.message);
+				sendPacket.header.packetLength = 8 + 4 + sendPacket.content.senderName.size()
+					+ 4 + sendPacket.content.roomName.size()
+					+ 4 + sendPacket.content.message.size();
+
+				iSendResult = SendMessageTo(chatserver.ChatSocket, sendPacket);
+			}
+			else {
+				authenticator::AuthenticateWebFailure loginFailure;
+				loginFailure.set_failreason(authenticator::AuthenticateWebFailure_reason_INVALID_CREDENTIALS);
+				loginFailure.set_requestid(requestId);
+				MessagePacket sendPacket;
+				sendPacket.header.messageType = LOG_FAIL;
+				sendPacket.content.roomName = SERVER_NAME;
+				sendPacket.content.senderName = SERVER_NAME;
+				loginFailure.SerializeToString(&sendPacket.content.message);
+				sendPacket.header.packetLength = 8 + 4 + sendPacket.content.senderName.size()
+					+ 4 + sendPacket.content.roomName.size()
+					+ 4 + sendPacket.content.message.size();
+
+				iSendResult = SendMessageTo(chatserver.ChatSocket, sendPacket);
+			}
+			return 1;
+		}
+	}
+	authenticator::AuthenticateWebFailure loginFailure;
+	loginFailure.set_failreason(authenticator::AuthenticateWebFailure_reason_INVALID_CREDENTIALS);
+	loginFailure.set_requestid(requestId);
+	MessagePacket sendPacket;
+	sendPacket.header.messageType = LOG_FAIL;
+	sendPacket.content.roomName = SERVER_NAME;
+	sendPacket.content.senderName = SERVER_NAME;
+	loginFailure.SerializeToString(&sendPacket.content.message);
+	sendPacket.header.packetLength = 8 + 4 + sendPacket.content.senderName.size()
+		+ 4 + sendPacket.content.roomName.size()
+		+ 4 + sendPacket.content.message.size();
+
+	iSendResult = SendMessageTo(chatserver.ChatSocket, sendPacket);
+	return -1;
 }
 
 int AuthServer::Initialize()
@@ -202,6 +426,7 @@ int AuthServer::IOCtlSocket()
 
 int AuthServer::ReceiveAndSend()
 {
+	this->LoadUsers();
 	MessagePacket packet;
 	packet.header.messageType = MESSAGE;
 	packet.content.senderName = "AUTH";
@@ -223,7 +448,7 @@ int AuthServer::ReceiveAndSend()
 	buffer.WriteString(packet.content.message);
 	char* bufPtr = (char*)&(buffer.m_Buffer[0]);
 	iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);
-
+	
 	while (1)
 	{	// listen to connected clients
 		const int buflen = DEFAULT_BUFLEN;
@@ -253,7 +478,7 @@ int AuthServer::ReceiveAndSend()
 			}
 			catch (std::exception e)
 			{
-				std::wcout << e.what() << std::endl;
+				std::cout << e.what() << std::endl;
 				continue;
 			}
 			// Deserialize the message we received
@@ -270,34 +495,17 @@ int AuthServer::ReceiveAndSend()
 				authenticator::AuthenticateWeb login;
 				if (login.ParseFromString(msg))
 				{
-					std::cout << "Email: " << login.email() << std::endl;
-					std::cout << "Password: " << login.plaintextpassword() << std::endl;
-					authenticator::AuthenticateWebSuccess logSucc;
-					logSucc.set_requestid(login.requestid());
-					logSucc.set_userid(123456);
-					logSucc.set_creationdate("23/11/22");
-					MessagePacket sendPacket;
-					sendPacket.header.messageType = LOG_SUCC;
-					sendPacket.content.roomName = SERVER_NAME;
-					sendPacket.content.senderName = SERVER_NAME;
-					logSucc.SerializeToString(&sendPacket.content.message);
-					sendPacket.header.packetLength = 8 + 4 + sendPacket.content.senderName.size()
-						+ 4 + sendPacket.content.roomName.size()
-						+ 4 + sendPacket.content.message.size();
-					std::cout << std::to_string(logSucc.requestid()) << std::endl;
-					iSendResult = SendMessageTo(chatserver.ChatSocket, sendPacket);
-					std::cout << "Send result " << iSendResult << std::endl;
+					this->AuthenticateUser(login.email(), login.plaintextpassword(), login.requestid());
 				}
 				else std::cout << "Parsing failed" << std::endl;
 
 			}
 			if (messagetype == REGISTER)
 			{
-				authenticator::AuthenticateWeb login;
-				if (login.ParseFromString(msg))
+				authenticator::CreateAccountWeb regi;
+				if (regi.ParseFromString(msg))
 				{
-					std::cout << "Email: " << login.email() << std::endl;
-					std::cout << "Password: " << login.plaintextpassword() << std::endl;
+					this->CreateUser(regi.email(), regi.plaintextpassword(), regi.requestid());
 				}
 				else std::cout << "Parsing failed" << std::endl;
 			}

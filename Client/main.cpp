@@ -7,8 +7,8 @@
 *	Program name:	GAME DEVELOPMENT ADVANCED PROGRAMMING
 *	Course name:	INFO6016 - Network Programming
 *					
-*	PROJECT - 1 
-*	TCP Client & Server, Chat Program
+*	PROJECT - 2 
+*	Auth Server
 *	
 *	a) How to build this project:
 *		-> Client
@@ -18,10 +18,16 @@
 *			- Right click on "Client" from Solution Explorer and hit build
 *			- The build is now created for Client, open Client.exe from the selected config directory
 *		-> Server
-*			- Select any platform x86 or x64
+*			- Select any platform x64
 *			- Select any configuration Debug or Release
 *			- Right click on "Project1" from Solution Explorer and "Clean" the solution (during first time build only)
 *			- Right click on "Project1" from Solution Explorer and hit build
+*			- The build is now created for Server, open Project1.exe from the selected config directory
+*		-> Server
+*			- Select any platform x64
+*			- Select any configuration Debug or Release
+*			- Right click on "AuthenticationServer" from Solution Explorer and "Clean" the solution (during first time build only)
+*			- Right click on "AuthenticationServer" from Solution Explorer and hit build
 *			- The build is now created for Server, open Project1.exe from the selected config directory
 *
 *	b) How to run this project:

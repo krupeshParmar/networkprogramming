@@ -8,10 +8,24 @@
 #include <vector>
 #include "ChatServer.h"
 #include "auth.pb.h"
+
 #define DEFAULT_BUFLEN 512
 #define TOTAL_ROOMS 5
 
 #pragma comment(lib, "Ws2_32.lib")
+
+class User
+{
+public:
+	
+	long ID = 0;
+	std::string email = "";
+	std::string salt = "";
+	std::string hashedPassword = "";
+	long userID = 0;
+	std::string last_login = "";
+	std::string creationDate = "";
+};
 
 
 class AuthServer
@@ -19,11 +33,16 @@ class AuthServer
 public:
 	AuthServer();
 	~AuthServer();
+	std::vector<User*> users;
 
 	int Initialize();
 	int Accept();
 	int ReceiveAndSend();
 private:
+	int LoadUsers();
+	int SaveUsers();
+	int CreateUser(std::string email, std::string password, long int);
+	int AuthenticateUser(std::string email, std::string password, long int);
 	int CreateSocket();
 	int BindSocket();
 	int Listen();

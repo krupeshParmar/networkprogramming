@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<users>
+	<user>
+		<email>kp@gmail.com</email>
+		<id>4202</id>
+		<salt>1001257</salt>
+		<hashedPassword>0d5e2b2dbe9b1e961e8aca22e17dcc892c7901e16da3342b4ba8a997a1bda411</hashedPassword>
+		<userID>1669256422</userID>
+		<last_login>1669256422</last_login>
+		<creationDate></creationDate>
+	</user>
+	<user>
+		<email>krupesh@gmail.com</email>
+		<id>3512</id>
+		<salt>1001884</salt>
+		<hashedPassword>10af0a70c7f94307cda02b3848003168fd6da8c0c0b3d637760b4b8b78751db0</hashedPassword>
+		<userID>1669256614</userID>
+		<last_login>1669256614</last_login>
+		<creationDate></creationDate>
+	</user>
+	<user>
+		<email>user1@fanshawe.ca</email>
+		<id>4301</id>
+		<salt>1005682</salt>
+		<hashedPassword>35b91922f9ffd10dc8077cf89b4b6f09454a0333ec7bf8b4e22bda307b09f698</hashedPassword>
+		<userID>1669257777</userID>
+		<last_login>1669257777</last_login>
+		<creationDate></creationDate>
+	</user>
+</users>

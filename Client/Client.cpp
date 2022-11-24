@@ -289,12 +289,54 @@ int Client::SendAndReceive()
 					login.set_email(email);
 					login.set_plaintextpassword(password);
 					login.set_requestid(time(NULL));
-					std::cout << std::to_string(login.requestid()) << std::endl;
 					MessagePacket packet;
 					packet.header.messageType = LOGIN;
 					packet.content.senderName = clientName;
 					packet.content.roomName = "";
 					login.SerializeToString(&packet.content.message);
+					packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
+						+ 4 + packet.content.roomName.size()
+						+ 4 + packet.content.message.size();
+
+					// Serialize the message to send over the network
+					Buffer buffer = Buffer(packet.header.packetLength);
+					buffer.WriteInt32LE(packet.header.packetLength);
+					buffer.WriteInt16LE(packet.header.messageType);
+					buffer.WriteInt32LE(packet.content.senderName.size());
+					buffer.WriteString(packet.content.senderName);
+					buffer.WriteInt32LE(packet.content.roomName.size());
+					buffer.WriteString(packet.content.roomName);
+					buffer.WriteInt32LE(packet.content.message.size());
+					buffer.WriteString(packet.content.message);
+					char* bufPtr = (char*)&(buffer.m_Buffer[0]);
+					iResult = send(ConnectSocket, bufPtr, packet.header.packetLength, 0);	// send the message
+
+				}
+				
+				if (my_msg.substr(0, 9) == "_register")
+				{
+					std::string email, password;
+					int sep = -1;
+
+					for (int j = 10; j < my_msg.size(); j++)
+					{
+						if (my_msg[j] == ' ')
+						{
+							sep =	 j;
+							break;
+						}
+						email += my_msg[j];
+					}
+					password = my_msg.substr(sep + 1);
+					authenticator::CreateAccountWeb regis;
+					regis.set_email(email);
+					regis.set_plaintextpassword(password);
+					regis.set_requestid(time(NULL));
+					MessagePacket packet;
+					packet.header.messageType = REGISTER;
+					packet.content.senderName = clientName;
+					packet.content.roomName = "";
+					regis.SerializeToString(&packet.content.message);
 					packet.header.packetLength = 8 + 4 + packet.content.senderName.size()
 						+ 4 + packet.content.roomName.size()
 						+ 4 + packet.content.message.size();
