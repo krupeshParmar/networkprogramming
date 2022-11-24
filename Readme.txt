@@ -6,25 +6,19 @@
 	Program name:	GAME DEVELOPMENT ADVANCED PROGRAMMING
 	Course name:	INFO6016 - Network Programming
 					
-	PROJECT - 1 
-	TCP Client & Server, Chat Program
+	PROJECT - 2
+	Authentication Service
 	
-	a) How to build this project:
-		-> Client
-			- Select x64 platform for Debug
-			- Or Select any platform for Release
-			- Right click on "Client" from Solution Explorer and "Clean" the solution (during first time build only)
-			- Right click on "Client" from Solution Explorer and hit build
-			- The build is now created for Client, open Client.exe from the selected config directory
-		-> Server
-			- Select any platform x86 or x64
-			- Select any configuration Debug or Release
-			- Right click on "Project1" from Solution Explorer and "Clean" the solution (during first time build only)
-			- Right click on "Project1" from Solution Explorer and hit build
-			- The build is now created for Server, open Project1.exe from the selected config directory
+	a - b) How to build & run this project:
 
-	b) How to run this project:
-		- After building, an "exe" file will have been generated inside the "Project1" dir/{selected config path}
+		-> For All 3 Projects:
+			- Right click on Project from solution Explorer
+			- Select Debug->Start new instance without debuging
+
+		-> Running order
+			First run Project1 (Chat Server)
+			Then AuthenticationServer (Auth server)
+			Lastly Client (Client chat app)
 
 	c) User inputs:
 		- Keyboard inputs required for Client.exe
